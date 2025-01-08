@@ -1,15 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'models.dart'; // ваши модели
-import 'api_service.dart'; // ваш сервис
+import 'dto/orderItemDto.dart'; // ваши модели
+import 'web_socket_service.dart'; // ваш WebSocket сервис
 
 class ChefScreenPage extends StatefulWidget {
   final String initialScreenId;
   final String name;
 
   const ChefScreenPage(
-      {Key? key, required this.initialScreenId, required this.name})
-      : super(key: key);
+      {super.key, required this.initialScreenId, required this.name});
 
   @override
   _ChefScreenPageState createState() => _ChefScreenPageState();
@@ -22,27 +21,21 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
   static const Color COLOR_COOKING_WARNING = Color(0xffff6969);
   static const int SECONDS_COOKING_WARNING = 30;
 
-  final ApiService apiService = ApiService();
-
-  /// Контроллер для поля ввода screenId
+  final WebSocketService _webSocketService = WebSocketService();
   late TextEditingController _screenIdController;
-
-  int? stationId;
   List<OrderItemDto> orders = [];
   Timer? _timer;
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Изначально заполним TextField значением из конструктора
     _screenIdController = TextEditingController(text: widget.initialScreenId);
 
-    // Запросим данные, если initialScreenId не пуст
     if (widget.initialScreenId.isNotEmpty) {
-      _loadStationAndOrders(widget.initialScreenId);
+      _connectToWebSocket(widget.initialScreenId);
     }
 
-    // Таймер, чтобы каждую секунду обновлять "таймер" готовки
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {});
     });
@@ -51,57 +44,39 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
   @override
   void dispose() {
     _timer?.cancel();
-    apiService.disconnectWebSocket();
+    _webSocketService.disconnect();
     _screenIdController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadStationAndOrders(String screenId) async {
-    apiService.disconnectWebSocket(); // отключаемся от предыдущего, если был
-
-    final stId = await apiService.getStationId(screenId);
-    if (stId == null) {
-      setState(() {
-        stationId = null;
-        orders.clear();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Такого screenId не существует")),
-      );
-      return;
-    }
-    stationId = stId;
-
-    // Подключаемся к WebSocket
-    apiService.connectWebSocket(
+  void _connectToWebSocket(String screenId) {
+    _webSocketService.connect(
       screenId: screenId,
-      onMessage: (type, content) {
-        if (type == 'REFRESH_PAGE') {
-          _refreshPage(screenId);
-        } else if (type == 'NOTIFICATION') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(content.toString())),
-          );
+      onMessage: (String type, dynamic payload) {
+        switch (type) {
+          case 'NOTIFICATION':
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(payload.toString())),
+            );
+            _webSocketService.sendGetAllOrderItems(screenId);
+            break;
+          case 'GET_ALL_ORDER_ITEMS':
+            setState(() {
+              orders = (payload as List<dynamic>)
+                  .map((e) => OrderItemDto.fromJson(e))
+                  .toList();
+              isLoading = false;
+            });
+            break;
+          default:
+            debugPrint('Unknown message type: $type');
         }
       },
+      onConnect: () {
+        // Отправляем запрос на получение всех заказов после успешного подключения
+        _webSocketService.sendGetAllOrderItems(screenId);
+      },
     );
-
-    _refreshPage(screenId);
-  }
-
-  Future<void> _refreshPage(String screenId) async {
-    if (stationId == null) return;
-    try {
-      final list = await apiService.getScreenOrderItems(screenId);
-      setState(() {
-        orders = list;
-      });
-    } catch (e) {
-      debugPrint("Failed to load orders: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Не удалось загрузить заказы")),
-      );
-    }
   }
 
   @override
@@ -110,27 +85,23 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
       appBar: AppBar(
         title: Text(widget.name),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _buildOrdersArea(),
-          ),
-        ],
-      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Expanded(
+                  child: _buildOrdersArea(),
+                ),
+              ],
+            ),
     );
   }
 
   Widget _buildOrdersArea() {
-    if (stationId == null) {
-      return const Center(
-          child: Text("Станция не определена. Введите screenId."));
-    }
-
     if (orders.isEmpty) {
       return const Center(child: Text("Заказов нет"));
     }
 
-    // Пример: 3-колоночная сетка
     return GridView.builder(
       padding: const EdgeInsets.all(8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -154,13 +125,12 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
     String timeLabel;
     if (item.status == OrderItemStationStatus.STARTED) {
       backgroundColor = COLOR_IN_PROGRESS;
-      timeLabel = "Время готовки: $elapsedSeconds сек";
+      timeLabel = "Готовка: $elapsedSeconds сек";
       if (elapsedSeconds > SECONDS_COOKING_WARNING) {
         backgroundColor = COLOR_COOKING_WARNING;
       }
     } else {
-      // ADDED
-      timeLabel = "Время ожидания: $elapsedSeconds сек";
+      timeLabel = "ожидание: $elapsedSeconds сек";
       if (elapsedSeconds > SECONDS_WAITING_WARNING) {
         backgroundColor = COLOR_WAITING_WARNING;
       }
@@ -175,34 +145,26 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
           padding: const EdgeInsets.all(10),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // constraints.maxWidth / constraints.maxHeight
-              // Можно посмотреть размер плитки и подстроить текст
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     "Заказ #${item.orderId}: ${item.name}",
                     style: TextStyle(
-                      fontSize:
-                          constraints.maxWidth * 0.08, // зависимость от ширины
+                      fontSize: constraints.maxWidth * 0.08,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Список ингредиентов
                   Expanded(
                     child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: item.ingredients.map((ingredient) {
-                          if (ingredient.stationId == stationId ||
-                              ingredient.stationId == null) {
-                            return Text("- ${ingredient.name}",
-                                style: TextStyle(
-                                  fontSize: constraints.maxWidth * 0.06,
-                                ));
-                          }
-                          return Container();
+                          return Text("- ${ingredient.name}",
+                              style: TextStyle(
+                                fontSize: constraints.maxWidth * 0.06,
+                              ));
                         }).toList(),
                       ),
                     ),
@@ -227,8 +189,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
 
   Future<void> _onOrderTap(OrderItemDto item) async {
     try {
-      await apiService.updateStatus(item.id);
-      _refreshPage(_screenIdController.text.trim());
+      _webSocketService.sendUpdateOrder(widget.initialScreenId, item.id);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Ошибка обновления статуса: $e")),

@@ -1,3 +1,5 @@
+import 'package:flutter_iem_new/src/dto/ingredientDto.dart';
+
 class OrderItemDto {
   final int id;
   final int orderId;
@@ -32,18 +34,4 @@ class OrderItemDto {
   }
 }
 
-enum OrderItemStationStatus { ADDED, STARTED, COMPLETED, CANCELED }
-
-class IngredientDto {
-  final int? stationId;
-  final String name;
-
-  IngredientDto({this.stationId, required this.name});
-
-  factory IngredientDto.fromJson(Map<String, dynamic> json) {
-    return IngredientDto(
-      stationId: json['stationId'] as int?,
-      name: json['name'] as String,
-    );
-  }
-}
+enum OrderItemStationStatus { ADDED, STARTED, COOCKING, COMPLETED, CANCELED }
