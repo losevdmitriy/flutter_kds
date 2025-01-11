@@ -4,33 +4,42 @@ import 'package:stomp_dart_client/stomp_dart_client.dart';
 class WebSocketService {
   StompClient? _stompClient;
 
-  /// Подключение к WebSocket
+  bool get isConnected => _stompClient?.connected == true;
+
   void connect({
     required String screenId,
     required Function(String type, dynamic payload) onMessage,
     Function? onConnect,
+    Function? onDisconnect,
   }) {
+    // Если уже подключено - return
+    if (_stompClient?.connected == true) {
+      print('[WebSocketService] Already connected, skip.');
+      return;
+    }
     _stompClient = StompClient(
       config: StompConfig(
-        url: 'ws://10.0.2.2:8000/ws', // Адрес STOMP WebSocket-сервера
+        url: 'ws://10.0.2.2:8000/ws',
         onConnect: (StompFrame frame) {
           print('Connected to WebSocket');
-          // Подписываемся на уведомления
+          // Подписываемся
           _subscribeToNotifications(screenId, onMessage);
-          // Подписываемся на заказы
           _subscribeToOrders(screenId, onMessage);
-          if (onConnect != null) {
-            onConnect();
-          }
-        },
-        onStompError: (StompFrame frame) {
-          print('STOMP error: ${frame.body}');
-        },
-        onWebSocketError: (dynamic error) {
-          print('WebSocket error: $error');
+          _subscribeToRefreshAll(onMessage);
+          onConnect?.call();
         },
         onDisconnect: (StompFrame frame) {
           print('Disconnected from WebSocket');
+          onDisconnect?.call();
+        },
+        onStompError: (StompFrame frame) {
+          print('STOMP error: ${frame.body}');
+          // Обычно после ошибки - отключаемся
+          onDisconnect?.call();
+        },
+        onWebSocketError: (dynamic error) {
+          print('WebSocket error: $error');
+          onDisconnect?.call();
         },
         onDebugMessage: (String message) {
           print('WebSocket debug: $message');
@@ -41,80 +50,97 @@ class WebSocketService {
     _stompClient?.activate();
   }
 
-  /// Подписка на уведомления
   void _subscribeToNotifications(
-      String screenId, Function(String type, dynamic payload) onMessage) {
-    final destination = '/topic/screen.notification/$screenId';
+    String screenId,
+    Function(String type, dynamic payload) onMessage,
+  ) {
     _stompClient?.subscribe(
-      destination: destination,
+      destination: '/topic/screen.notification/$screenId',
       callback: (StompFrame frame) {
-        try {
-          if (frame.body != null) {
-            final data = jsonDecode(frame.body!);
-            final type = data['type']; // e.g., "NEW_ORDER", "NOTIFICATION"
-            final payload = data['payload'];
-            onMessage(type, payload);
-          }
-        } catch (e) {
-          print('Error parsing notification message: $e');
+        if (frame.body != null) {
+          final data = jsonDecode(frame.body!);
+          onMessage(data['type'], data['payload']);
         }
       },
     );
-    print('Subscribed to $destination');
   }
 
-  /// Подписка на заказы
+  void _subscribeToRefreshAll(
+    Function(String type, dynamic payload) onMessage,
+  ) {
+    _stompClient?.subscribe(
+      destination: '/topic/screen.refresh',
+      callback: (StompFrame frame) {
+        if (frame.body != null) {
+          final data = jsonDecode(frame.body!);
+          onMessage(data['type'], data['payload']);
+        }
+      },
+    );
+  }
+
   void _subscribeToOrders(
-      String screenId, Function(String type, dynamic payload) onMessage) {
-    final destination = '/topic/screen.orders/$screenId';
+    String screenId,
+    Function(String type, dynamic payload) onMessage,
+  ) {
     _stompClient?.subscribe(
-      destination: destination,
+      destination: '/topic/screen.orders/$screenId',
       callback: (StompFrame frame) {
-        try {
-          if (frame.body != null) {
-            final data = jsonDecode(frame.body!);
-            final type = data['type']; // Тип для обновления списка заказов
-            final payload =
-                data['payload']; // Предполагаем, что это список заказов
-            onMessage(type, payload);
-          }
-        } catch (e) {
-          print('Error parsing orders message: $e');
+        if (frame.body != null) {
+          final data = jsonDecode(frame.body!);
+          onMessage(data['type'], data['payload']);
         }
       },
     );
-    print('Subscribed to $destination');
   }
 
-  /// Отправка сообщения (например, для обновления статуса заказа)
+  bool _canSend() {
+    return _stompClient != null && _stompClient!.connected;
+  }
+
+  void sendGetAllOrderItems(String screenId) {
+    if (!_canSend()) {
+      print('[sendGetAllOrderItems] Not connected -> skip');
+      return;
+    }
+    final destination = '/app/topic/screen.getAllOrders/$screenId';
+    _stompClient!.send(destination: destination, body: '');
+  }
+
   void sendUpdateOrder(String screenId, int orderItemId) {
+    if (!_canSend()) {
+      print('[sendUpdateOrder] Not connected -> skip');
+      return;
+    }
     final destination =
         '/app/topic/screen/$screenId/update.orderItem/$orderItemId';
-    _stompClient?.send(destination: destination, body: '');
-    print('Sent update order request for item $orderItemId');
+    _stompClient!.send(destination: destination, body: '');
   }
 
-  /// Отправка сообщения (например, для обновления статуса заказа)
-  void sendGetAllOrderItems(String screenId) {
-    final destination = '/app/topic/screen.getAllOrders/$screenId';
-    if (_stompClient == null) {
-      throw Exception("WebSocket client is not activated.");
+  void sendGetAllOrdersWithItems(String screenId) {
+    if (!_canSend()) {
+      print('[sendGetAllOrdersWithItems] Not connected -> skip');
+      return;
     }
-    _stompClient?.send(destination: destination, body: '');
-    print('Sent get all order items request for screen id $screenId');
+    final destination = '/app/topic/screen.getAllOrdersWithItems';
+    _stompClient!.send(destination: destination, body: '');
   }
 
-  /// Отправка сообщения для обновления статуса всех позиций заказа
-  void sendUpdateOrderToDone(String screenId, int orderId) {
+  void sendUpdateAllOrderToDone(String screenId, int orderId) {
+    if (!_canSend()) {
+      print('[sendUpdateAllOrderToDone] Not connected -> skip');
+      return;
+    }
     final destination =
-        '/app/topic/screen/$screenId/update.order.done/$orderId';
-    _stompClient?.send(destination: destination, body: '');
-    print('Sent update order to done for order $orderId');
+        '/app/topic/screen/$screenId/update.allOrder.done/$orderId';
+    _stompClient!.send(destination: destination, body: '');
   }
 
-  /// Отключение от WebSocket
   void disconnect() {
-    _stompClient?.deactivate();
-    _stompClient = null;
+    if (_stompClient != null) {
+      print('[WebSocketService] Deactivating client...');
+      _stompClient!.deactivate();
+      _stompClient = null;
+    }
   }
 }

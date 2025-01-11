@@ -45,6 +45,17 @@ class StartPage extends StatelessWidget {
                 );
               },
             ),
+            ElevatedButton(
+              child: const Text("Сборка NEW"),
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  '/collect',
+                  arguments: {"screenId": "3"},
+                );
+              },
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),

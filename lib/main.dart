@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_iem_new/src/collector_screen_page.dart';
 import 'src/start_page.dart';
 import 'src/chef_screen_page.dart';
 
@@ -9,9 +10,6 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
-  // Определяем маршруты (routes) в MaterialApp:
-  // '/' (root) – это StartPage
-  // '/chef' – это ChefScreenPage
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -21,24 +19,25 @@ class MyApp extends StatelessWidget {
       onGenerateRoute: (settings) {
         if (settings.name == '/chef') {
           final args = settings.arguments as Map<String, String>?;
-          if (args != null) {
-            return MaterialPageRoute(
-              builder: (context) => ChefScreenPage(
-                initialScreenId: args['screenId'] ?? '',
-                name: args['screenName'] ?? 'Chef Screen',
-              ),
-            );
-          } else {
-            // Если аргументы не переданы, используем значения по умолчанию
-            return MaterialPageRoute(
-              builder: (context) => const ChefScreenPage(
-                initialScreenId: '',
-                name: 'Chef Screen',
-              ),
-            );
-          }
+          return MaterialPageRoute(
+            builder: (context) => ChefScreenPage(
+              initialScreenId: args?['screenId'] ?? '',
+              name: args?['screenName'] ?? 'Chef Screen',
+            ),
+          );
+        } else if (settings.name == '/collect') {
+          final args = settings.arguments as Map<String, String>?;
+          return MaterialPageRoute(
+            builder: (context) => CollectorScreenPage(
+              initialScreenId: args?['screenId'] ?? '',
+            ),
+          );
         }
-        return null; // Возвращаем null, если маршрут неизвестен
+
+        // Неизвестный маршрут
+        return MaterialPageRoute(
+          builder: (context) => const StartPage(),
+        );
       },
       routes: {
         '/': (context) => const StartPage(),
