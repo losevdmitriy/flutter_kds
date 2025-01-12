@@ -4,7 +4,7 @@ import 'models.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 
 class ApiService {
-  static const String baseUrl = "http://10.0.2.2:8000/api"; // пример
+w  static const String baseUrl = "http://192.168.0.15:8000/api"; // пример
 
   StompClient? _stompClient;
 
@@ -49,7 +49,7 @@ class ApiService {
   }) {
     _stompClient = StompClient(
       config: StompConfig(
-        url: 'ws://10.0.2.2:8000/ws', // Адрес вашего STOMP-сервера
+        url: 'ws://192.168.0.15:8000/ws', // Адрес вашего STOMP-сервера
         onConnect: (StompFrame frame) {
           print('Connected to STOMP');
           // Подписываемся на сообщения, которые сервер отправляет клиенту

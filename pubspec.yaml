@@ -15,6 +15,7 @@ dependencies:
   intl: ^0.19.0
   web_socket_channel: ^3.0.1
   stomp_dart_client: ^2.1.1
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -23,3 +24,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+flutter:
+  assets:
+    - assets/eventually.wav
+

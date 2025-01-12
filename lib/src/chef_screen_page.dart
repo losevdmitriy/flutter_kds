@@ -1,15 +1,19 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'models.dart'; // ваши модели
+import 'package:audioplayers/audioplayers.dart'; // Добавьте этот импорт
+import 'dart:async';
+
+import 'models.dart';    // ваши модели
 import 'api_service.dart'; // ваш сервис
 
 class ChefScreenPage extends StatefulWidget {
   final String initialScreenId;
   final String name;
 
-  const ChefScreenPage(
-      {Key? key, required this.initialScreenId, required this.name})
-      : super(key: key);
+  const ChefScreenPage({
+    Key? key,
+    required this.initialScreenId,
+    required this.name,
+  }) : super(key: key);
 
   @override
   _ChefScreenPageState createState() => _ChefScreenPageState();
@@ -29,11 +33,23 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
 
   int? stationId;
   List<OrderItemDto> orders = [];
+
+  // Храним предыдущий список заказов, чтобы понять, появились ли новые
+  List<OrderItemDto> _oldOrders = [];
+
   Timer? _timer;
+
+  // Поля для аудио
+  late AudioCache _audioCache;
 
   @override
   void initState() {
-    super.initState();
+    super.initState();  
+
+    // Инициализируем аудио-кэш. 
+    // При необходимости можно и AudioPlayer использовать, но для коротких звуков AudioCache удобнее.
+    _audioCache = AudioCache(prefix: 'assets/sounds/eventually.mp3');
+
     // Изначально заполним TextField значением из конструктора
     _screenIdController = TextEditingController(text: widget.initialScreenId);
 
@@ -57,7 +73,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
   }
 
   Future<void> _loadStationAndOrders(String screenId) async {
-    apiService.disconnectWebSocket(); // отключаемся от предыдущего, если был
+    apiService.disconnectWebSocket(); // Отключаем предыдущий сокет, если был
 
     final stId = await apiService.getStationId(screenId);
     if (stId == null) {
@@ -77,8 +93,10 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
       screenId: screenId,
       onMessage: (type, content) {
         if (type == 'REFRESH_PAGE') {
+          // Когда сервер просит рефреш, мы снова загружаем заказы
           _refreshPage(screenId);
         } else if (type == 'NOTIFICATION') {
+          // Показываем сообщение
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(content.toString())),
           );
@@ -92,10 +110,22 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
   Future<void> _refreshPage(String screenId) async {
     if (stationId == null) return;
     try {
+      // Загружаем новый список
       final list = await apiService.getScreenOrderItems(screenId);
+
+      // Сравниваем, появились ли новые заказы (по количеству)
+      // Можно и глубже сравнивать, если нужно понимать, какие именно заказы добавились
+      final bool hasNewOrder = list.length > orders.length;
+
       setState(() {
-        orders = list;
+        _oldOrders = orders; // запоминаем старые заказы
+        orders = list;       // заменяем на новые
       });
+
+      // Если новые заказы появились, проиграем звук
+      if (hasNewOrder) {
+        _playNotificationSound();
+      }
     } catch (e) {
       debugPrint("Failed to load orders: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -103,6 +133,13 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
       );
     }
   }
+
+  /// Воспроизводит короткий звуковой сигнал
+void _playNotificationSound() async {
+  final player = AudioPlayer();
+  await player.play(AssetSource('assets/notification.wav'));
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +160,8 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
   Widget _buildOrdersArea() {
     if (stationId == null) {
       return const Center(
-          child: Text("Станция не определена. Введите screenId."));
+        child: Text("Станция не определена. Введите screenId.")
+      );
     }
 
     if (orders.isEmpty) {
@@ -175,7 +213,6 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
           padding: const EdgeInsets.all(10),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              // constraints.maxWidth / constraints.maxHeight
               // Можно посмотреть размер плитки и подстроить текст
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,8 +220,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
                   Text(
                     "Заказ #${item.orderId}: ${item.name}",
                     style: TextStyle(
-                      fontSize:
-                          constraints.maxWidth * 0.08, // зависимость от ширины
+                      fontSize: constraints.maxWidth * 0.08,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -197,10 +233,12 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
                         children: item.ingredients.map((ingredient) {
                           if (ingredient.stationId == stationId ||
                               ingredient.stationId == null) {
-                            return Text("- ${ingredient.name}",
-                                style: TextStyle(
-                                  fontSize: constraints.maxWidth * 0.06,
-                                ));
+                            return Text(
+                              "- ${ingredient.name}",
+                              style: TextStyle(
+                                fontSize: constraints.maxWidth * 0.06,
+                              ),
+                            );
                           }
                           return Container();
                         }).toList(),
