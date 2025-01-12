@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'dto/orderFullDto.dart';
-import 'dto/orderItemDto.dart';
-import 'web_socket_service.dart';
+import 'package:flutter_iem_new/src/service/web_socket_service.dart';
+import '../dto/orderFullDto.dart';
+import '../dto/orderItemDto.dart';
 
 class CollectorScreenPage extends StatefulWidget {
   final String initialScreenId;
