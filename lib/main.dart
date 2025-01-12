@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_iem_new/src/collector_screen_page.dart';
 import 'src/start_page.dart';
 import 'src/chef_screen_page.dart';
+import 'src/add_product_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -32,6 +33,8 @@ class MyApp extends StatelessWidget {
               initialScreenId: args?['screenId'] ?? '',
             ),
           );
+        } else if (settings.name == '/addPrepack') {
+          return MaterialPageRoute(builder: (context) => AddProductScreen());
         }
 
         // Неизвестный маршрут

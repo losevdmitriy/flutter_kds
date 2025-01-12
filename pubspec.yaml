@@ -15,6 +15,8 @@ dependencies:
   intl: ^0.19.0
   web_socket_channel: ^3.0.1
   stomp_dart_client: ^2.1.1
+  flutter_keyboard_visibility: 6.0.0
+  searchfield: ^1.2.2
 
 dev_dependencies:
   flutter_test:

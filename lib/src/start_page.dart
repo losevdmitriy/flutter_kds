@@ -55,6 +55,15 @@ class StartPage extends StatelessWidget {
                 );
               },
             ),
+            ElevatedButton(
+              child: const Text("Внести товар"),
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  '/addPrepack',
+                );
+              },
+            ),
             const SizedBox(height: 16),
           ],
         ),
