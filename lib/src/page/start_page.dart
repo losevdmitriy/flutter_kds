@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_iem_new/src/page/all_invoices_act_page.dart';
+
+import 'invoice_act_page.dart';
 
 class StartPage extends StatelessWidget {
   const StartPage({Key? key}) : super(key: key);
@@ -52,6 +55,30 @@ class StartPage extends StatelessWidget {
                   context,
                   '/collect',
                   arguments: {"screenId": "3"},
+                );
+              },
+            ),
+            // const SizedBox(height: 16),
+            // ElevatedButton(
+            //   child: const Text("Накладная"),
+            //   onPressed: () {
+            //     Navigator.push(
+            //       context,
+            //       MaterialPageRoute(
+            //         builder: (context) => const InvoicePage(isEditMode: true, invoice: null),
+            //       ),
+            //     );
+            //   },
+            // ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              child: const Text("Накладные"),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AllInvoicesPage(),
+                  ),
                 );
               },
             ),

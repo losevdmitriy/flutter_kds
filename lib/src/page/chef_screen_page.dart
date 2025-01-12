@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'dto/orderItemDto.dart'; // ваши модели
-import 'web_socket_service.dart'; // ваш WebSocket сервис
+import 'package:flutter_iem_new/src/service/web_socket_service.dart';
+import '../dto/orderItemDto.dart'; // ваши модели
 
 class ChefScreenPage extends StatefulWidget {
   final String initialScreenId;

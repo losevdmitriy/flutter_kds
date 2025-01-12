@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_iem_new/src/collector_screen_page.dart';
-import 'src/start_page.dart';
-import 'src/chef_screen_page.dart';
+import 'package:flutter_iem_new/src/page/collector_screen_page.dart';
+import 'src/page/start_page.dart';
+import 'src/page/chef_screen_page.dart';
 
 void main() {
   runApp(const MyApp());
