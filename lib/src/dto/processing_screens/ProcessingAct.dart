@@ -1,5 +1,38 @@
 import 'PrepackRecipeItem.dart';
 
+class ProcessingAct {
+  int id;
+  int prepackId;
+  String prepackName;
+  double amount;
+  String measurementUnit;
+  String name;
+  String employeeName;
+  DateTime date;
+
+  ProcessingAct(
+      {required this.id,
+      required this.prepackId,
+      required this.prepackName,
+      required this.measurementUnit,
+      required this.amount,
+      required this.date,
+      required this.employeeName,
+      required this.name});
+
+  factory ProcessingAct.fromJson(Map<String, dynamic> json) {
+    return ProcessingAct(
+        id: json['id'],
+        prepackId: json['prepackId'],
+        prepackName: json['prepackName'],
+        measurementUnit: json['measurementUnit'],
+        amount: json['amount'],
+        date: DateTime.parse(json['date']),
+        employeeName: json['employeeName'],
+        name: json['name']);
+  }
+}
+
 class ProcessingActDto {
   final int employeeId; // в Java final Long employeeId = 1L
   final int prepackId; // выбранная заготовка

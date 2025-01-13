@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_iem_new/src/page/collector_screen_page.dart';
+import 'src/page/processing_screens/all_processing_acts_screen.dart';
 import 'src/page/start_page.dart';
 import 'src/page/chef_screen_page.dart';
-import 'src/page/add_product_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -34,7 +34,8 @@ class MyApp extends StatelessWidget {
             ),
           );
         } else if (settings.name == '/addPrepack') {
-          return MaterialPageRoute(builder: (context) => AddProductScreen());
+          return MaterialPageRoute(
+              builder: (context) => AllProcessingActsScreen());
         }
 
         // Неизвестный маршрут

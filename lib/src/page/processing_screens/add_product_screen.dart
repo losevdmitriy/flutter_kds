@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_iem_new/src/dto/ProcessingAct.dart';
+import 'package:flutter_iem_new/src/dto/processing_screens/ProcessingAct.dart';
 import 'package:searchfield/searchfield.dart';
-import 'package:flutter_iem_new/src/dto/prepackDto.dart';
+import 'package:flutter_iem_new/src/dto/processing_screens/prepackDto.dart';
 import 'package:flutter_iem_new/src/service/api_service.dart';
-import '../dto/PrepackRecipeItem.dart';
+import '../../dto/processing_screens/PrepackRecipeItem.dart';
 
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({Key? key}) : super(key: key);

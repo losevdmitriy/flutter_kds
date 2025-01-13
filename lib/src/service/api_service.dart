@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'dart:ffi';
-import 'dart:io';
 import 'package:flutter_iem_new/src/dto/Invoice.dart';
-import 'package:flutter_iem_new/src/dto/ProcessingAct.dart';
+import 'package:flutter_iem_new/src/dto/processing_screens/ProcessingAct.dart';
 import 'package:flutter_iem_new/src/dto/Source.dart';
-import 'package:flutter_iem_new/src/dto/PrepackRecipeItem.dart';
+import 'package:flutter_iem_new/src/dto/processing_screens/PrepackRecipeItem.dart';
+
 import 'package:http/http.dart' as http;
+
+import '../dto/processing_screens/compliteProcessingAct.dart';
 
 class ApiService {
   static const String baseUrl = "http://10.0.2.2:8080";
@@ -118,6 +119,43 @@ class ApiService {
     // На бэке метод ничего не возвращает, но проверяем статус
     if (response.statusCode != 200) {
       throw Exception('Ошибка при сохранении обработки (ProcessingAct)');
+    }
+  }
+
+  Future<List<ProcessingAct>> fetchProcessingActs() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/processing/acts'),
+    );
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((json) => ProcessingAct.fromJson(json)).toList();
+    } else {
+      throw Exception('Ошибка при получении списка актов (ProcessingAct)');
+    }
+  }
+
+  Future<CompliteProcessingAct> fetchProcessingActItems(
+      int processingActId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/processing/acts/$processingActId'),
+    );
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      return CompliteProcessingAct.fromJson(data);
+    } else {
+      throw Exception(
+          'Ошибка при получении акта обработки (ProcessingAct): ${response.statusCode}');
+    }
+  }
+
+  Future<void> deleteProcessingAct(int processingActId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/processing/$processingActId'),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+          'Ошибка при удалении накладной. Код: ${response.statusCode}');
     }
   }
 }
