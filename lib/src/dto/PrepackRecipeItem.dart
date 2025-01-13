@@ -1,24 +1,26 @@
 class PrepackRecipeItem {
-  final int sourceId;
-  final String name;
-  final double initAmount;
-  final double finalAmount;
-  final double lossesAmount;
-  final double lossesPercentage;
+  int sourceId;
+  String name;
+  double initAmount;
+  double finalAmount;
+  double lossesAmount;
+  double lossesPercentage;
+  String sourceType;
 
-  PrepackRecipeItem({
-    required this.sourceId,
-    required this.name,
-    required this.initAmount,
-    required this.finalAmount,
-    required this.lossesAmount,
-    required this.lossesPercentage,
-  });
+  PrepackRecipeItem(
+      {required this.sourceId,
+      required this.name,
+      required this.initAmount,
+      required this.finalAmount,
+      required this.lossesAmount,
+      required this.lossesPercentage,
+      required this.sourceType});
 
   /// Фабричный конструктор для преобразования из JSON
   factory PrepackRecipeItem.fromJson(Map<String, dynamic> json) {
     return PrepackRecipeItem(
       sourceId: json['sourceId'] as int,
+      sourceType: json['sourceType'] as String,
       name: json['name'] as String,
       initAmount: (json['initAmount'] as num?)?.toDouble() ?? 0.0,
       finalAmount: (json['finalAmount'] as num?)?.toDouble() ?? 0.0,
@@ -34,5 +36,6 @@ class PrepackRecipeItem {
         'finalAmount': finalAmount,
         'lossesAmount': lossesAmount,
         'lossesPercentage': lossesPercentage,
+        'sourceType': sourceType
       };
 }

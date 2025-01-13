@@ -69,7 +69,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       final api = ApiService();
       final recipe = await api.fetchPrepackRecipe(prepackId);
       setState(() {
-        _recipeItems = recipe.cast<PrepackRecipeItem>();
+        _recipeItems = recipe;
       });
     } catch (e) {
       debugPrint('Ошибка при загрузке рецепта: $e');
@@ -434,16 +434,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
         newLossesPercent = item.lossesPercentage;
       }
 
-      final newFinalAmount = parsedRaw - newLossesAmount;
-
-      return PrepackRecipeItem(
-        sourceId: item.sourceId,
-        name: item.name,
-        initAmount: parsedRaw,
-        finalAmount: newFinalAmount,
-        lossesAmount: newLossesAmount,
-        lossesPercentage: newLossesPercent,
-      );
+      item.initAmount = parsedRaw;
+      item.finalAmount = parsedRaw - newLossesAmount;
+      item.lossesAmount = newLossesAmount;
+      item.lossesPercentage = newLossesPercent;
+      return item;
     }).toList();
   }
 
