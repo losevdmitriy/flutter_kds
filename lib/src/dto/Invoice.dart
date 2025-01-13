@@ -1,6 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-
 class Invoice {
   final int? id;
   DateTime date;
@@ -21,18 +18,18 @@ class Invoice {
   int get totalAmount => items.fold(0, (sum, item) => sum + item.amount);
 
   double get totalPrice =>
-      totalCost ?? items.fold(0.0, (sum, item) => sum + (item.amount * item.price));
+      totalCost ??
+      items.fold(0.0, (sum, item) => sum + (item.amount * item.price));
 
   int get totalLines => totalItems ?? items.length;
 
   factory Invoice.getAllFromJson(Map<String, dynamic> json) {
     return Invoice(
-      id: json['id'],
-      date: DateTime.parse(json['date']),
-      vendor: json['vendor'],
-      totalItems: json['totalItems'],
-      totalCost: json['totalCost']
-    );
+        id: json['id'],
+        date: DateTime.parse(json['date']),
+        vendor: json['vendor'],
+        totalItems: json['totalItems'],
+        totalCost: json['totalCost']);
   }
 
   factory Invoice.fromJson(Map<String, dynamic> json) {
@@ -41,8 +38,8 @@ class Invoice {
       date: DateTime.parse(json['date']),
       vendor: json['vendor'],
       items: (json['itemDataList'] as List)
-        .map((item) => InvoiceItem.fromJson(item))
-        .toList(), 
+          .map((item) => InvoiceItem.fromJson(item))
+          .toList(),
     );
   }
 
@@ -94,6 +91,6 @@ class InvoiceItem {
       'price': price,
     };
   }
-  
+
   double get lineTotal => amount * price;
 }

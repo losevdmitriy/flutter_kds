@@ -1,13 +1,13 @@
-import 'ingredientDto.dart';
-
 class PrepackDto {
   final int id;
   final String name;
-  final List<IngredientDto> ingredients;
 
   PrepackDto({
     required this.id,
     required this.name,
-    required this.ingredients,
   });
+
+  factory PrepackDto.fromJson(Map<String, dynamic> json) {
+    return PrepackDto(id: json['id'] as int, name: json['name'] as String);
+  }
 }

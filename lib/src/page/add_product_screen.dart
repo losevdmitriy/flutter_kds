@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_iem_new/src/dto/ProcessingAct.dart';
 import 'package:searchfield/searchfield.dart';
-
-import 'package:flutter_iem_new/src/dto/ingredientDto.dart';
 import 'package:flutter_iem_new/src/dto/prepackDto.dart';
+import 'package:flutter_iem_new/src/service/api_service.dart';
+import '../dto/PrepackRecipeItem.dart';
 
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({Key? key}) : super(key: key);
@@ -12,54 +13,17 @@ class AddProductScreen extends StatefulWidget {
 }
 
 class _AddProductScreenState extends State<AddProductScreen> {
-  /// Список доступных полуфабрикатов
-  final List<PrepackDto> _allSemiFinishedProducts = [
-    PrepackDto(
-      id: 1,
-      name: 'Полуфабрикат #1',
-      ingredients: [
-        IngredientDto(id: 1, name: 'Картофель', lossPercent: 10.0),
-        IngredientDto(id: 2, name: 'Морковь', lossPercent: 5.0),
-      ],
-    ),
-    PrepackDto(
-      id: 2,
-      name: 'Полуфабрикат #2',
-      ingredients: [
-        IngredientDto(id: 3, name: 'Курица', lossPercent: 12.0),
-        IngredientDto(id: 4, name: 'Лук репчатый', lossPercent: 3.0),
-      ],
-    ),
-    PrepackDto(
-      id: 3,
-      name: 'Полуфабрикат #3 (Пицца)',
-      ingredients: [
-        IngredientDto(id: 5, name: 'Тесто', lossPercent: 8.0),
-        IngredientDto(id: 6, name: 'Сыр', lossPercent: 2.0),
-      ],
-    ),
-    // ... и т.д.
-  ];
-
-  /// Текущее выбранное значение для SearchField
+  List<PrepackDto> _allSemiFinishedProducts = [];
   SearchFieldListItem<PrepackDto>? _selectedSearchItem;
-
-  /// Текущий выбранный полуфабрикат (из _selectedSearchItem.item)
   PrepackDto? _selectedProduct;
+  List<PrepackRecipeItem> _recipeItems = [];
 
-  /// Контроллер поискового поля
   final TextEditingController _typeAheadController = TextEditingController();
-
-  /// Фокус для поля поиска
   final FocusNode _searchFocusNode = FocusNode();
-
-  /// Скролл-контроллер для списка подсказок (новое в 1.2.2)
   final ScrollController _searchScrollController = ScrollController();
 
-  /// Флаг, указывающий, что уже выбрали полуфабрикат
   bool _hasSelectedProduct = false;
 
-  /// Остальные переменные (карты, контроллеры) для ингредиентов
   final Map<int, bool> _useManualLoss = {};
   final Map<int, double> _manualLossValues = {};
   final Map<int, TextEditingController> _rawControllers = {};
@@ -68,8 +32,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
   @override
   void initState() {
     super.initState();
+    _loadPrepacksFromApi();
 
-    // Если пользователь снова фокусируется на поле поиска — сбрасываем выбор
     _searchFocusNode.addListener(() {
       if (_searchFocusNode.hasFocus && _hasSelectedProduct) {
         setState(() {
@@ -79,6 +43,37 @@ class _AddProductScreenState extends State<AddProductScreen> {
         });
       }
     });
+  }
+
+  Future<void> _loadPrepacksFromApi() async {
+    try {
+      final api = ApiService();
+      final sources = await api.fetchPrepacks();
+      final prepackList = sources.map((src) {
+        return PrepackDto(
+          id: src.id ?? 0,
+          name: src.name,
+        );
+      }).toList();
+
+      setState(() {
+        _allSemiFinishedProducts = prepackList;
+      });
+    } catch (e) {
+      debugPrint('Ошибка при загрузке заготовок: $e');
+    }
+  }
+
+  Future<void> _loadPrepackRecipe(int prepackId) async {
+    try {
+      final api = ApiService();
+      final recipe = await api.fetchPrepackRecipe(prepackId);
+      setState(() {
+        _recipeItems = recipe.cast<PrepackRecipeItem>();
+      });
+    } catch (e) {
+      debugPrint('Ошибка при загрузке рецепта: $e');
+    }
   }
 
   @override
@@ -105,13 +100,29 @@ class _AddProductScreenState extends State<AddProductScreen> {
             const SizedBox(height: 24),
             if (_selectedProduct != null)
               Expanded(child: _buildIngredientsTable()),
+
+            // ---------- Кнопка "Сохранить" ----------
+            if (_selectedProduct != null)
+              if (_selectedProduct != null)
+                ElevatedButton(
+                  onPressed: _recipeItems.isNotEmpty ? _onSavePressed : null,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                  ),
+                  child: const Text(
+                    'Сохранить',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
           ],
         ),
       ),
     );
   }
 
-  /// Поле поиска + SearchField
   Widget _buildSearchableProductSelector() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,69 +132,52 @@ class _AddProductScreenState extends State<AddProductScreen> {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
-
-        /// Виджет SearchField 1.2.2
         SearchField<PrepackDto>(
           controller: _typeAheadController,
           focusNode: _searchFocusNode,
-          scrollController: _searchScrollController,
-          // Вместо обычного hint используем SearchInputDecoration для наглядности
+          scrollController: ScrollController(),
           searchInputDecoration: SearchInputDecoration(
             hintText: 'Начните вводить...',
-            maintainHintHeight: true, // c 1.2.1 можно использовать это свойство
+            maintainHintHeight: true,
             prefixIcon: const Icon(Icons.search),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
             ),
           ),
-
-          /// Полный список для автоподсказок
           suggestions: _allSemiFinishedProducts
-              .map(
-                (prod) => SearchFieldListItem<PrepackDto>(
-                  prod.name,
-                  item: prod,
-                ),
-              )
+              .map((prod) => SearchFieldListItem<PrepackDto>(
+                    prod.name,
+                    item: prod,
+                  ))
               .toList(),
-
-          /// Явно указываем текущее выбранное значение
           selectedValue: _selectedSearchItem,
-
-          /// Что отобразить, если ничего не найдено
           emptyWidget: const Center(
             child: Text(
               'Ничего не найдено',
               style: TextStyle(fontSize: 18),
             ),
           ),
-
-          /// Callback при тапе по варианту
-          onSuggestionTap: (SearchFieldListItem<PrepackDto> item) {
+          onSuggestionTap: (SearchFieldListItem<PrepackDto> item) async {
+            final chosenPrepack = item.item!;
             setState(() {
               _selectedSearchItem = item;
-              _selectedProduct = item.item; // item.item — это PrepackDto
-              _typeAheadController.text = item.item!.name;
-
-              // Сбрасываем все данные ингредиентов
+              _selectedProduct = chosenPrepack;
+              _typeAheadController.text = chosenPrepack.name;
               _useManualLoss.clear();
               _manualLossValues.clear();
               _rawControllers.clear();
               _manualLossControllers.clear();
-
-              // Флаг, что продукт выбран
               _hasSelectedProduct = true;
+              _recipeItems = [];
             });
+            await _loadPrepackRecipe(chosenPrepack.id);
           },
         ),
       ],
     );
   }
 
-  /// Таблица ингредиентов
   Widget _buildIngredientsTable() {
-    final ingredients = _selectedProduct!.ingredients;
-
     return SingleChildScrollView(
       child: Table(
         border: TableBorder.all(color: Colors.grey, width: 2.0),
@@ -202,20 +196,20 @@ class _AddProductScreenState extends State<AddProductScreen> {
               _buildHeaderCell("Выход"),
             ],
           ),
-          for (var ingredient in ingredients)
+          for (var item in _recipeItems)
             TableRow(
               children: [
                 Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: _buildRawInputColumn(ingredient),
+                  child: _buildRawInputColumn(item),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: _buildLossColumn(ingredient),
+                  child: _buildLossColumn(item),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: _buildYieldColumn(ingredient),
+                  child: _buildYieldColumn(item),
                 ),
               ],
             ),
@@ -235,12 +229,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  /// Колонка ввода сырья
-  Widget _buildRawInputColumn(IngredientDto ingredient) {
+  Widget _buildRawInputColumn(PrepackRecipeItem item) {
+    final keyId = item.sourceId;
     final controller = _rawControllers.putIfAbsent(
-      ingredient.id,
+      keyId,
       () {
-        final c = TextEditingController();
+        final c = TextEditingController(text: item.initAmount.toString());
         c.addListener(() {
           setState(() {});
         });
@@ -252,7 +246,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          ingredient.name,
+          item.name,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         const SizedBox(height: 10),
@@ -261,7 +255,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           keyboardType: TextInputType.number,
           style: const TextStyle(fontSize: 18),
           decoration: const InputDecoration(
-            labelText: 'Кол-во (сырьё), кг',
+            labelText: 'Кол-во (сырьё), г',
             labelStyle: TextStyle(fontSize: 16),
             border: OutlineInputBorder(),
           ),
@@ -270,11 +264,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  /// Колонка для потерь
-  Widget _buildLossColumn(IngredientDto ingredient) {
-    final isManual = _useManualLoss[ingredient.id] ?? false;
+  Widget _buildLossColumn(PrepackRecipeItem item) {
+    final keyId = item.sourceId;
+    final isManual = _useManualLoss[keyId] ?? false;
     final manualLossController = _manualLossControllers.putIfAbsent(
-      ingredient.id,
+      keyId,
       () {
         final c = TextEditingController();
         c.addListener(() {
@@ -286,9 +280,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
     Widget lossesWidget;
     if (!isManual) {
-      lossesWidget = _buildAutoLossInfo(ingredient);
+      lossesWidget = _buildAutoLossInfo(item);
     } else {
-      lossesWidget = _buildManualLossInfo(ingredient, manualLossController);
+      lossesWidget = _buildManualLossInfo(item, manualLossController);
     }
 
     return Row(
@@ -305,7 +299,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 value: isManual,
                 onChanged: (bool? value) {
                   setState(() {
-                    _useManualLoss[ingredient.id] = value ?? false;
+                    _useManualLoss[keyId] = value ?? false;
                   });
                 },
               ),
@@ -321,10 +315,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  Widget _buildAutoLossInfo(IngredientDto ingredient) {
-    final rawValue = _parseDouble(_rawControllers[ingredient.id]?.text) ?? 0.0;
-    final autoLossPercent = ingredient.lossPercent;
-    final autoLossKg = rawValue * (autoLossPercent / 100);
+  Widget _buildAutoLossInfo(PrepackRecipeItem item) {
+    final lossesAmount = item.lossesAmount;
+    final lossesPercentage = item.lossesPercentage;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,11 +328,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          "${autoLossPercent.toStringAsFixed(2)} %",
+          "${lossesPercentage.toStringAsFixed(2)} %",
           style: const TextStyle(fontSize: 18),
         ),
         Text(
-          "(${autoLossKg.toStringAsFixed(2)} кг)",
+          "(${lossesAmount.toStringAsFixed(2)} г)",
           style: const TextStyle(fontSize: 18),
         ),
       ],
@@ -347,15 +340,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }
 
   Widget _buildManualLossInfo(
-    IngredientDto ingredient,
-    TextEditingController controller,
-  ) {
-    final rawValue = _parseDouble(_rawControllers[ingredient.id]?.text) ?? 0.0;
-    final lossKg = _parseDouble(controller.text) ?? 0.0;
+      PrepackRecipeItem item, TextEditingController controller) {
+    final keyId = item.sourceId;
+    final initText = _rawControllers[keyId]?.text;
+    final rawValue = _parseDouble(initText) ?? 0.0;
+    final lossVal = _parseDouble(controller.text) ?? 0.0;
 
     double manualLossPercent = 0;
     if (rawValue > 0) {
-      manualLossPercent = (lossKg / rawValue) * 100;
+      manualLossPercent = (lossVal / rawValue) * 100;
     }
 
     return Column(
@@ -371,7 +364,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           keyboardType: TextInputType.number,
           style: const TextStyle(fontSize: 18),
           decoration: const InputDecoration(
-            labelText: 'Потери, кг',
+            labelText: 'Потери, г',
             labelStyle: TextStyle(fontSize: 16),
             border: OutlineInputBorder(),
           ),
@@ -385,25 +378,25 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  /// Колонка "Выход": крупные цифры по центру
-  Widget _buildYieldColumn(IngredientDto ingredient) {
-    final rawValue = _parseDouble(_rawControllers[ingredient.id]?.text) ?? 0.0;
-    final isManual = _useManualLoss[ingredient.id] ?? false;
+  Widget _buildYieldColumn(PrepackRecipeItem item) {
+    final keyId = item.sourceId;
+    final rawText = _rawControllers[keyId]?.text;
+    final rawValue = _parseDouble(rawText) ?? 0.0;
+    final isManual = _useManualLoss[keyId] ?? false;
 
     double lossKg;
     if (isManual) {
       final manualLoss =
-          _parseDouble(_manualLossControllers[ingredient.id]?.text) ?? 0.0;
+          _parseDouble(_manualLossControllers[keyId]?.text) ?? 0.0;
       lossKg = manualLoss;
     } else {
-      final autoLossPercent = ingredient.lossPercent;
-      lossKg = rawValue * (autoLossPercent / 100);
+      lossKg = item.lossesAmount;
     }
-    final result = rawValue - lossKg;
 
+    final result = rawValue - lossKg;
     return Center(
       child: Text(
-        "${result.toStringAsFixed(2)} кг",
+        "${result.toStringAsFixed(2)} г",
         style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
       ),
     );
@@ -412,5 +405,101 @@ class _AddProductScreenState extends State<AddProductScreen> {
   double? _parseDouble(String? text) {
     if (text == null || text.isEmpty) return null;
     return double.tryParse(text);
+  }
+
+  // ------------------- Ниже логика сохранения -------------------
+
+  /// Собираем обновлённые данные из полей и формируем List<PrepackRecipeItem>
+  List<PrepackRecipeItem> _getUpdatedRecipeItems() {
+    return _recipeItems.map((item) {
+      final keyId = item.sourceId;
+
+      // initAmount из поля
+      final rawString = _rawControllers[keyId]?.text ?? '${item.initAmount}';
+      final parsedRaw = double.tryParse(rawString) ?? item.initAmount;
+
+      // потери
+      final isManual = _useManualLoss[keyId] ?? false;
+      double newLossesAmount;
+      double newLossesPercent;
+
+      if (isManual) {
+        final lossText = _manualLossControllers[keyId]?.text ?? '0';
+        final manualLoss = double.tryParse(lossText) ?? 0.0;
+        newLossesAmount = manualLoss;
+        newLossesPercent =
+            (parsedRaw > 0) ? (manualLoss / parsedRaw) * 100 : 0.0;
+      } else {
+        newLossesAmount = item.lossesAmount;
+        newLossesPercent = item.lossesPercentage;
+      }
+
+      final newFinalAmount = parsedRaw - newLossesAmount;
+
+      return PrepackRecipeItem(
+        sourceId: item.sourceId,
+        name: item.name,
+        initAmount: parsedRaw,
+        finalAmount: newFinalAmount,
+        lossesAmount: newLossesAmount,
+        lossesPercentage: newLossesPercent,
+      );
+    }).toList();
+  }
+
+  /// Например, считаем сумму выходов (finalAmount) или что-то другое
+  double _calculateTotalYield() {
+    double total = 0.0;
+    final updatedItems = _getUpdatedRecipeItems();
+    for (final item in updatedItems) {
+      total += item.finalAmount;
+    }
+    return total;
+  }
+
+  Future<void> _onSavePressed() async {
+    if (_selectedProduct == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Выберите полуфабрикат перед сохранением')),
+      );
+      return;
+    }
+
+    if (_recipeItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Список ингредиентов не может быть пустым')),
+      );
+      return;
+    }
+
+    final updatedItems = _getUpdatedRecipeItems();
+    final totalAmount = _calculateTotalYield();
+
+    final actDto = ProcessingActDto(
+      employeeId: 1, // например, фиксированное
+      prepackId: _selectedProduct!.id,
+      amount: totalAmount, // сколько всего получилось
+      barcode: null,
+      name: null,
+      itemDataList: updatedItems,
+    );
+
+    try {
+      final api = ApiService();
+      await api.saveProcessing(actDto);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Сохранено успешно!')),
+      );
+      // Или вернуться назад:
+      // Navigator.pop(context);
+    } catch (e) {
+      debugPrint('Ошибка при сохранении: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка при сохранении: $e')),
+      );
+    }
   }
 }
