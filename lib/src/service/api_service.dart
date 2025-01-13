@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'dart:ffi';
+import 'dart:io';
 import 'package:flutter_iem_new/src/dto/Invoice.dart';
 import 'package:flutter_iem_new/src/dto/ProcessingAct.dart';
 import 'package:flutter_iem_new/src/dto/Source.dart';
@@ -38,6 +40,17 @@ class ApiService {
     }
   }
 
+  Future<void> deleteInvoice(int invoiceId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/invoices/$invoiceId'),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+          'Ошибка при удалении накладной. Код: ${response.statusCode}');
+    }
+  }
+
   /// Сохранение накладной
   Future<void> saveInvoice(Invoice invoice) async {
     final response = await http.post(
@@ -54,7 +67,7 @@ class ApiService {
   /// Получение всех накладных
   Future<List<Source>> fetchSources() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/sources'),
+      Uri.parse('$baseUrl/sources/all'),
     );
 
     if (response.statusCode == 200) {

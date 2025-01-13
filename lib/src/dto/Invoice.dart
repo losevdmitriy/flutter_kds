@@ -15,13 +15,21 @@ class Invoice {
     List<InvoiceItem>? items,
   }) : items = items ?? [];
 
-  int get totalAmount => items.fold(0, (sum, item) => sum + item.amount);
+  double get totalAmount => items.fold(0, (sum, item) => sum + item.amount);
 
   double get totalPrice =>
       totalCost ??
       items.fold(0.0, (sum, item) => sum + (item.amount * item.price));
 
-  int get totalLines => totalItems ?? items.length;
+  int get totalLines {
+    if (totalItems == null) {
+      return items.length; // Если totalItems == null, возвращаем items.length
+    } else if (totalItems != null && items.length > totalItems!) {
+      return totalItems!; // Если totalItems != null и items.length > totalItems, возвращаем totalItems
+    } else {
+      return totalItems!; // Иначе возвращаем totalItems
+    }
+  }
 
   factory Invoice.getAllFromJson(Map<String, dynamic> json) {
     return Invoice(
@@ -58,7 +66,7 @@ class InvoiceItem {
   int? sourceId;
   String? sourceType;
   String name;
-  int amount;
+  double amount;
   double price;
 
   InvoiceItem({
