@@ -41,7 +41,7 @@ void initState() {
   );
   _supplierController = TextEditingController(text: widget.invoice.vendor);
 
-  if (widget.invoice.items.isEmpty) {
+  if (widget.invoice.id != null) {
     _fetchInvoice(widget.invoice.id!); // Загрузка накладной по ID
   }
 }
@@ -250,9 +250,12 @@ Future<void> _fetchInvoice(int invoiceId) async {
                   } else if (snapshot.hasData) {
                     final availableSources = snapshot.data!; // Загруженные данные
 
+                    if (invoice.items.isEmpty) {
+                      return const Center(child: Text('Нет данных.'));
+                    }
                     return ListView.builder(
                       key: const PageStorageKey('invoice_items_list'), // ключ для списка
-                      itemCount: invoice.totalItems,
+                      itemCount: invoice.items.length,
                       itemBuilder: (context, index) {
                         final item = invoice.items[index];
 

@@ -143,8 +143,7 @@ class _InvoiceItemRowState extends State<InvoiceItemRow>
       },
 
       // Отображение поля ввода
-      fieldViewBuilder:
-          (context, textEditingController, focusNode, onEditingComplete) {
+      fieldViewBuilder: (context, textEditingController, focusNode, onEditingComplete) {
         return TextField(
           controller: textEditingController,
           focusNode: focusNode,
@@ -178,9 +177,19 @@ class _InvoiceItemRowState extends State<InvoiceItemRow>
                 itemCount: options.length,
                 itemBuilder: (context, index) {
                   final option = options.elementAt(index);
-                  return ListTile(
-                    title: Text(option.name),
-                    onTap: () => onSelected(option),
+                  return Container(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Colors.grey.shade300, // Цвет разделителя
+                          width: 1, // Толщина разделителя
+                        ),
+                      ),
+                    ),
+                    child: ListTile(
+                      title: Text(option.name),
+                      onTap: () => onSelected(option),
+                    ),
                   );
                 },
               ),
@@ -201,7 +210,7 @@ class _InvoiceItemRowState extends State<InvoiceItemRow>
         border: OutlineInputBorder(),
       ),
       onChanged: (value) {
-        final parsed = int.tryParse(value.replaceAll(',', '.')) ?? 0;
+        final parsed = double.tryParse(value.replaceAll(',', '.')) ?? 0;
         setState(() {
           widget.item.amount = parsed;
         });

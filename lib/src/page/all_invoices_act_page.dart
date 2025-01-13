@@ -43,6 +43,47 @@ class _AllInvoicesPageState extends State<AllInvoicesPage> {
     }
   }
 
+  Future<void> _deleteInvoice(int invoiceId) async {
+    try {
+      await _apiService.deleteInvoice(invoiceId); // Удаляем накладную
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Накладная удалена')),
+      );
+      _fetchInvoices(); // Обновляем список после удаления
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка удаления накладной: $e')),
+      );
+    }
+  }
+
+  void _confirmDeleteInvoice(Invoice invoice) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Удаление накладной'),
+          content: const Text('Вы уверены, что хотите удалить эту накладную?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Закрываем диалог
+              },
+              child: const Text('Отмена'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Закрываем диалог
+                _deleteInvoice(invoice.id!);
+              },
+              child: const Text('Удалить'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -71,11 +112,14 @@ class _AllInvoicesPageState extends State<AllInvoicesPage> {
                                 isEditMode: false,
                               ),
                             ),
-                          );
+                          ).then((isUpdated) {
+                            if (isUpdated == true) {
+                              _fetchInvoices(); // Обновляем список, если были изменения
+                            }
+                          });
                         },
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                           child: Row(
                             children: [
                               Expanded(
@@ -89,7 +133,7 @@ class _AllInvoicesPageState extends State<AllInvoicesPage> {
                               Expanded(
                                 flex: 2,
                                 child: Text(
-                                  inv.totalAmount.toString(),
+                                  inv.totalLines.toString(),
                                   textAlign: TextAlign.right,
                                 ),
                               ),
@@ -98,6 +142,13 @@ class _AllInvoicesPageState extends State<AllInvoicesPage> {
                                 child: Text(
                                   _priceFormat.format(inv.totalPrice),
                                   textAlign: TextAlign.right,
+                                ),
+                              ),
+                              Expanded(
+                                flex: 1,
+                                child: IconButton(
+                                  icon: const Icon(Icons.delete),
+                                  onPressed: () => _confirmDeleteInvoice(inv),
                                 ),
                               ),
                             ],
@@ -123,7 +174,7 @@ class _AllInvoicesPageState extends State<AllInvoicesPage> {
     );
   }
 
-  Widget _buildTableHeader() {
+Widget _buildTableHeader() {
     return Container(
       color: const Color.fromARGB(255, 225, 223, 223),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -156,6 +207,14 @@ class _AllInvoicesPageState extends State<AllInvoicesPage> {
             child: Text(
               'Цена',
               textAlign: TextAlign.right,
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Text(
+              '',
+              textAlign: TextAlign.center,
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
