@@ -24,10 +24,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   bool _hasSelectedProduct = false;
 
-  final Map<int, bool> _useManualLoss = {};
-  final Map<int, double> _manualLossValues = {};
+  // Раньше было _useManualLoss / _manualLossControllers, переименуем:
+  final Map<int, bool> _useManualYield = {};
+  final Map<int, TextEditingController> _manualYieldControllers = {};
+
+  // Исходное количество, как и прежде
   final Map<int, TextEditingController> _rawControllers = {};
-  final Map<int, TextEditingController> _manualLossControllers = {};
 
   @override
   void initState() {
@@ -87,8 +89,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text("Ввод продуктов в БД", style: TextStyle(fontSize: 22)),
+        title: const Text(
+          "Ввод продуктов в БД",
+          style: TextStyle(fontSize: 22),
+        ),
         centerTitle: true,
         toolbarHeight: 60,
       ),
@@ -163,10 +167,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
               _selectedSearchItem = item;
               _selectedProduct = chosenPrepack;
               _typeAheadController.text = chosenPrepack.name;
-              _useManualLoss.clear();
-              _manualLossValues.clear();
+              // Сбрасываем вручную
+              _useManualYield.clear();
+              _manualYieldControllers.clear();
               _rawControllers.clear();
-              _manualLossControllers.clear();
               _hasSelectedProduct = true;
               _recipeItems = [];
             });
@@ -229,14 +233,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
+  /// Колонка "Ингредиент / Сырьё" + ввод сырья
   Widget _buildRawInputColumn(PrepackRecipeItem item) {
     final keyId = item.sourceId;
+
+    // Контроллер для "исходного кол-ва" (raw)
     final controller = _rawControllers.putIfAbsent(
       keyId,
       () {
+        // Ставим текущее значение из item.initAmount
         final c = TextEditingController(text: item.initAmount.toString());
         c.addListener(() {
-          setState(() {});
+          setState(() {}); // Перерисовываем, чтобы пересчитать потери
         });
         return c;
       },
@@ -264,141 +272,122 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
+  /// Колонка "Потери"
+  ///
+  /// Теперь она всегда выводит разницу = initAmount - finalAmount.
+  /// Если "ручной ввод" не включён, считаем finalAmount = (init - потери из item).
+  /// Если включён, finalAmount = то, что пользователь вписал в текстовое поле "Выход".
   Widget _buildLossColumn(PrepackRecipeItem item) {
     final keyId = item.sourceId;
-    final isManual = _useManualLoss[keyId] ?? false;
-    final manualLossController = _manualLossControllers.putIfAbsent(
+    final bool isManual = _useManualYield[keyId] ?? false;
+
+    final rawValue = _parseDouble(_rawControllers[keyId]?.text) ?? 0.0;
+
+    double finalValue;
+    if (isManual) {
+      // Ручной ввод выхода
+      final manualController = _manualYieldControllers[keyId];
+      final manualYield = _parseDouble(manualController?.text) ?? 0.0;
+      finalValue = manualYield;
+    } else {
+      // Авто-выход = raw - item.lossesAmount
+      // (как было в исходной логике)
+      finalValue = rawValue - item.lossesAmount;
+      if (finalValue < 0) finalValue = 0; // на всякий случай
+    }
+
+    // Потери = rawValue - finalValue
+    final losses = rawValue - finalValue;
+    final lossesPercent = (rawValue > 0) ? (losses / rawValue) * 100 : 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Потери: ${losses.toStringAsFixed(2)} г",
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          "(${lossesPercent.toStringAsFixed(2)}%)",
+          style: const TextStyle(fontSize: 16),
+        ),
+      ],
+    );
+  }
+
+  /// Колонка "Выход"
+  ///
+  /// - Если чекбокс "Ручной ввод" не установлен, показываем авто-выход = (init - item.lossesAmount)
+  /// - Если чекбокс установлен, показываем текстовое поле для ручного ввода выхода.
+  /// - Рядом с TextField размещаем сам чекбокс.
+  Widget _buildYieldColumn(PrepackRecipeItem item) {
+    final keyId = item.sourceId;
+    final bool isManual = _useManualYield[keyId] ?? false;
+
+    // Инициализируем контроллер для ручного выхода
+    final controller = _manualYieldControllers.putIfAbsent(
       keyId,
       () {
-        final c = TextEditingController();
+        // Пусть по умолчанию будет (init - lossesAmount)
+        final autoYield = item.initAmount - item.lossesAmount;
+        final c = TextEditingController(text: autoYield.toStringAsFixed(2));
         c.addListener(() {
-          setState(() {});
+          setState(() {}); // чтобы пересчитать потери
         });
         return c;
       },
     );
 
-    Widget lossesWidget;
-    if (!isManual) {
-      lossesWidget = _buildAutoLossInfo(item);
-    } else {
-      lossesWidget = _buildManualLossInfo(item, manualLossController);
-    }
+    final rawValue = _parseDouble(_rawControllers[keyId]?.text) ?? 0.0;
+    // Если ручной ввод НЕ установлен, авто-выход:
+    double finalValue = rawValue - item.lossesAmount;
+    if (finalValue < 0) finalValue = 0;
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Expanded(child: lossesWidget),
-        const SizedBox(width: 16),
+        Expanded(
+          child: isManual
+              ? TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(fontSize: 18),
+                  decoration: const InputDecoration(
+                    labelText: 'Выход (г)',
+                    labelStyle: TextStyle(fontSize: 16),
+                    border: OutlineInputBorder(),
+                  ),
+                )
+              : Center(
+                  child: Text(
+                    "${finalValue.toStringAsFixed(2)} г",
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+        ),
+        const SizedBox(width: 8),
         Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Transform.scale(
               scale: 1.3,
               child: Checkbox(
                 value: isManual,
-                onChanged: (bool? value) {
+                onChanged: (val) {
                   setState(() {
-                    _useManualLoss[keyId] = value ?? false;
+                    _useManualYield[keyId] = val ?? false;
                   });
                 },
               ),
             ),
-            const Text(
-              'Ручной\nввод',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
-            ),
+            const Text('Ручной\nввод',
+                textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
           ],
         ),
       ],
-    );
-  }
-
-  Widget _buildAutoLossInfo(PrepackRecipeItem item) {
-    final lossesAmount = item.lossesAmount;
-    final lossesPercentage = item.lossesPercentage;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Авто-потери:",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          "${lossesPercentage.toStringAsFixed(2)} %",
-          style: const TextStyle(fontSize: 18),
-        ),
-        Text(
-          "(${lossesAmount.toStringAsFixed(2)} г)",
-          style: const TextStyle(fontSize: 18),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildManualLossInfo(
-      PrepackRecipeItem item, TextEditingController controller) {
-    final keyId = item.sourceId;
-    final initText = _rawControllers[keyId]?.text;
-    final rawValue = _parseDouble(initText) ?? 0.0;
-    final lossVal = _parseDouble(controller.text) ?? 0.0;
-
-    double manualLossPercent = 0;
-    if (rawValue > 0) {
-      manualLossPercent = (lossVal / rawValue) * 100;
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Ручные потери:",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          style: const TextStyle(fontSize: 18),
-          decoration: const InputDecoration(
-            labelText: 'Потери, г',
-            labelStyle: TextStyle(fontSize: 16),
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          "~ ${manualLossPercent.toStringAsFixed(2)} %",
-          style: const TextStyle(fontSize: 18),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildYieldColumn(PrepackRecipeItem item) {
-    final keyId = item.sourceId;
-    final rawText = _rawControllers[keyId]?.text;
-    final rawValue = _parseDouble(rawText) ?? 0.0;
-    final isManual = _useManualLoss[keyId] ?? false;
-
-    double lossKg;
-    if (isManual) {
-      final manualLoss =
-          _parseDouble(_manualLossControllers[keyId]?.text) ?? 0.0;
-      lossKg = manualLoss;
-    } else {
-      lossKg = item.lossesAmount;
-    }
-
-    final result = rawValue - lossKg;
-    return Center(
-      child: Text(
-        "${result.toStringAsFixed(2)} г",
-        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-      ),
     );
   }
 
@@ -414,35 +403,47 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return _recipeItems.map((item) {
       final keyId = item.sourceId;
 
-      // initAmount из поля
+      // Считываем initAmount (сырьё)
       final rawString = _rawControllers[keyId]?.text ?? '${item.initAmount}';
       final parsedRaw = double.tryParse(rawString) ?? item.initAmount;
 
-      // потери
-      final isManual = _useManualLoss[keyId] ?? false;
-      double newLossesAmount;
+      final bool isManual = _useManualYield[keyId] ?? false;
+
+      double finalAmount; // Выход
+      double newLossesAmount; // Поту
       double newLossesPercent;
 
       if (isManual) {
-        final lossText = _manualLossControllers[keyId]?.text ?? '0';
-        final manualLoss = double.tryParse(lossText) ?? 0.0;
-        newLossesAmount = manualLoss;
+        // Ручной ввод выхода
+        final yieldString = _manualYieldControllers[keyId]?.text ?? '';
+        final parsedYield = double.tryParse(yieldString) ?? 0.0;
+        finalAmount = parsedYield;
+        // Потери = raw - выход
+        newLossesAmount = parsedRaw - finalAmount;
+        if (newLossesAmount < 0) newLossesAmount = 0;
         newLossesPercent =
-            (parsedRaw > 0) ? (manualLoss / parsedRaw) * 100 : 0.0;
+            (parsedRaw > 0) ? (newLossesAmount / parsedRaw) * 100 : 0.0;
       } else {
+        // Авто-выход (raw - item.lossesAmount)
+        // Берём lossesAmount из item
         newLossesAmount = item.lossesAmount;
-        newLossesPercent = item.lossesPercentage;
+        finalAmount = parsedRaw - newLossesAmount;
+        if (finalAmount < 0) finalAmount = 0;
+        // old logic
+        newLossesPercent =
+            (parsedRaw > 0) ? (newLossesAmount / parsedRaw) * 100 : 0.0;
       }
 
       item.initAmount = parsedRaw;
-      item.finalAmount = parsedRaw - newLossesAmount;
+      item.finalAmount = finalAmount;
       item.lossesAmount = newLossesAmount;
       item.lossesPercentage = newLossesPercent;
+
       return item;
     }).toList();
   }
 
-  /// Например, считаем сумму выходов (finalAmount) или что-то другое
+  /// Например, считаем сумму выходов (finalAmount)
   double _calculateTotalYield() {
     double total = 0.0;
     final updatedItems = _getUpdatedRecipeItems();
@@ -488,7 +489,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Сохранено успешно!')),
       );
-      // Или вернуться назад:
+      // Например, вернуться назад:
       // Navigator.pop(context);
     } catch (e) {
       debugPrint('Ошибка при сохранении: $e');
