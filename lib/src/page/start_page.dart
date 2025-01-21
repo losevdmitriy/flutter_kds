@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_iem_new/src/page/all_invoices_act_page.dart';
 
-import 'invoice_act_page.dart';
-
 class StartPage extends StatelessWidget {
   const StartPage({Key? key}) : super(key: key);
 
@@ -88,6 +86,15 @@ class StartPage extends StatelessWidget {
                 Navigator.pushNamed(
                   context,
                   '/addPrepack',
+                );
+              },
+            ),
+            ElevatedButton(
+              child: const Text("Склад"),
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  '/warehouse',
                 );
               },
             ),

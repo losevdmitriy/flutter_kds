@@ -7,10 +7,13 @@ import 'package:flutter_iem_new/src/dto/processing_screens/PrepackRecipeItem.dar
 
 import 'package:http/http.dart' as http;
 
+import '../dto/IngredientItemData.dart';
+import '../dto/PrepackItemData.dart';
 import '../dto/processing_screens/compliteProcessingAct.dart';
+import '../dto/writeOffRequest.dart';
 
 class ApiService {
-  static const String baseUrl = "http://10.0.2.2:8080";
+  static const String baseUrl = "http://10.0.2.2:8000";
 
   ApiService();
 
@@ -156,6 +159,47 @@ class ApiService {
     if (response.statusCode != 200) {
       throw Exception(
           'Ошибка при удалении накладной. Код: ${response.statusCode}');
+    }
+  }
+
+  /// Получение всех ингредиентов (IngredientItemData)
+  Future<List<IngredientItemData>> fetchIngredientItems() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/warehouse/ingredients'),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((jsonEl) => IngredientItemData.fromJson(jsonEl)).toList();
+    } else {
+      throw Exception('Ошибка при получении списка ингредиентов');
+    }
+  }
+
+  /// Получение всех PrepackItemData (полуфабрикатов)
+  Future<List<PrepackItemData>> fetchPrepackItems() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/warehouse/prepacks'),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((jsonEl) => PrepackItemData.fromJson(jsonEl)).toList();
+    } else {
+      throw Exception('Ошибка при получении списка полуфабрикатов (prepacks)');
+    }
+  }
+
+  Future<void> writeOffItem(WriteOffRequest request) async {
+    final url = Uri.parse('$baseUrl/warehouse/write-off');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(request.toJson()),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Ошибка при списании: ${response.body}');
     }
   }
 }
