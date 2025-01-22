@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_iem_new/src/page/Warehouse/warehouse_page.dart';
 import 'package:flutter_iem_new/src/page/collector_screen_page.dart';
 import 'src/page/processing_screens/all_processing_acts_screen.dart';
 import 'src/page/start_page.dart';
@@ -36,8 +37,9 @@ class MyApp extends StatelessWidget {
         } else if (settings.name == '/addPrepack') {
           return MaterialPageRoute(
               builder: (context) => AllProcessingActsScreen());
+        } else if (settings.name == '/warehouse') {
+          return MaterialPageRoute(builder: (context) => WarehouseScreen());
         }
-
         // Неизвестный маршрут
         return MaterialPageRoute(
           builder: (context) => const StartPage(),
