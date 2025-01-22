@@ -19,7 +19,7 @@ class WebSocketService {
     }
     _stompClient = StompClient(
       config: StompConfig(
-        url: 'ws://10.0.2.2:8000/ws',
+        url: 'ws://192.168.0.15:8000/ws',
         onConnect: (StompFrame frame) {
           print('Connected to WebSocket');
           // Подписываемся

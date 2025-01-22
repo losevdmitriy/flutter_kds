@@ -10,16 +10,19 @@ class OrderItemDto {
   final OrderItemStationStatus status;
   final StationDto currentStation;
   final String flowStepType;
+  final int timeToCook;
 
-  OrderItemDto(
-      {required this.id,
-      required this.orderId,
-      required this.name,
-      required this.createdAt,
-      required this.status,
-      required this.currentStation,
-      required this.ingredients,
-      required this.flowStepType});
+  OrderItemDto({
+    required this.id,
+    required this.orderId,
+    required this.name,
+    required this.createdAt,
+    required this.status,
+    required this.currentStation,
+    required this.ingredients,
+    required this.flowStepType,
+    required this.timeToCook
+  });
 
   factory OrderItemDto.fromJson(Map<String, dynamic> json) {
     return OrderItemDto(
@@ -36,7 +39,8 @@ class OrderItemDto {
         ),
         currentStation:
             StationDto.fromJson(json['currentStation'] as Map<String, dynamic>),
-        flowStepType: json['flowStepType'] as String);
+        flowStepType: json['flowStepType'] as String,
+        timeToCook: json['timeToCook'] as int);
   }
 }
 

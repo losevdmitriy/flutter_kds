@@ -19,10 +19,10 @@ class ChefScreenPage extends StatefulWidget {
 
 class _ChefScreenPageState extends State<ChefScreenPage> {
   static const Color COLOR_IN_PROGRESS = Colors.lightBlue;
-  static const Color COLOR_WAITING_WARNING = Colors.orange;
-  static const int SECONDS_WAITING_WARNING = 20;
+  // static const Color COLOR_WAITING_WARNING = Colors.orange;
+  // static const int SECONDS_WAITING_WARNING = 20000;
   static const Color COLOR_COOKING_WARNING = Color(0xffff6969);
-  static const int SECONDS_COOKING_WARNING = 30;
+  // static const int SECONDS_COOKING_WARNING = 30000;
 
   final WebSocketService _webSocketService = WebSocketService();
 
@@ -165,14 +165,14 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
     if (item.status == OrderItemStationStatus.STARTED) {
       backgroundColor = COLOR_IN_PROGRESS;
       timeLabel = "Готовка: $elapsedSeconds сек";
-      if (elapsedSeconds > SECONDS_COOKING_WARNING) {
+      if (elapsedSeconds > item.timeToCook) {
         backgroundColor = COLOR_COOKING_WARNING;
       }
     } else {
       timeLabel = "Ожидание: $elapsedSeconds сек";
-      if (elapsedSeconds > SECONDS_WAITING_WARNING) {
-        backgroundColor = COLOR_WAITING_WARNING;
-      }
+      // if (elapsedSeconds > SECONDS_WAITING_WARNING) {
+      //   backgroundColor = COLOR_WAITING_WARNING;
+      // }
     }
 
     return GestureDetector(
