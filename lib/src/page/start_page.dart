@@ -1,14 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_iem_new/src/config/api_config.dart';
+import 'package:flutter_iem_new/src/widgets/ip_input_dialog.dart';
 import 'package:flutter_iem_new/src/page/all_invoices_act_page.dart';
 
 class StartPage extends StatelessWidget {
   const StartPage({Key? key}) : super(key: key);
+
+  /// Открывает диалог настройки IP-адреса и порта
+  void _showIpDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => IpInputDialog(
+        onIpEntered: (String fullAddress) {
+          // Разбиваем "IP:PORT" и обновляем `ApiConfig`
+          final parts = fullAddress.split(':');
+          if (parts.length == 2) {
+            ApiConfig.ip = parts[0];
+            ApiConfig.port = int.tryParse(parts[1]) ?? 80;
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("IP-адрес успешно обновлен!")),
+          );
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Главная страница"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => _showIpDialog(context),
+            tooltip: "Настроить IP-адрес",
+          ),
+        ],
       ),
       body: Center(
         child: Column(
@@ -56,18 +85,6 @@ class StartPage extends StatelessWidget {
                 );
               },
             ),
-            // const SizedBox(height: 16),
-            // ElevatedButton(
-            //   child: const Text("Накладная"),
-            //   onPressed: () {
-            //     Navigator.push(
-            //       context,
-            //       MaterialPageRoute(
-            //         builder: (context) => const InvoicePage(isEditMode: true, invoice: null),
-            //       ),
-            //     );
-            //   },
-            // ),
             const SizedBox(height: 16),
             ElevatedButton(
               child: const Text("Накладные"),

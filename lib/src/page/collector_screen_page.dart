@@ -60,12 +60,12 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
               SnackBar(content: Text(payload.toString())),
             );
             if (_isConnected) {
-              webSocketService.sendGetAllOrdersWithItems(screenId);
+              webSocketService.sendGetAllOrdersWithItems();
             }
             break;
           case 'REFRESH':
             if (_isConnected) {
-              webSocketService.sendGetAllOrdersWithItems(screenId);
+              webSocketService.sendGetAllOrdersWithItems();
             }
             break;
           case 'GET_ALL_ORDERS':
@@ -84,7 +84,7 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
         setState(() {
           _isConnected = true;
         });
-        webSocketService.sendGetAllOrdersWithItems(screenId);
+        webSocketService.sendGetAllOrdersWithItems();
       },
       onDisconnect: () {
         if (!mounted) return;
@@ -296,6 +296,6 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
     webSocketService.disconnect();
     await Future.delayed(const Duration(milliseconds: 300));
     _connectToWebSocket(widget.initialScreenId);
-    webSocketService.sendGetAllOrdersWithItems(widget.initialScreenId);
+    webSocketService.sendGetAllOrdersWithItems();
   }
 }

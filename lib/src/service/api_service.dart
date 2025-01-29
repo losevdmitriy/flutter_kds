@@ -1,27 +1,25 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_iem_new/src/dto/Invoice.dart';
-import 'package:flutter_iem_new/src/dto/processing_screens/ProcessingAct.dart';
-import 'package:flutter_iem_new/src/dto/Source.dart';
-import 'package:flutter_iem_new/src/dto/processing_screens/PrepackRecipeItem.dart';
-
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 
+import '../dto/Invoice.dart';
+import '../dto/processing_screens/ProcessingAct.dart';
+import '../dto/Source.dart';
+import '../dto/processing_screens/PrepackRecipeItem.dart';
 import '../dto/IngredientItemData.dart';
 import '../dto/PrepackItemData.dart';
 import '../dto/processing_screens/compliteProcessingAct.dart';
-import '../dto/writeOffRequest.dart';
+import '../dto/writeOffRequest.dart'; // Импортируем WriteOffRequest
 
 class ApiService {
-  static final String baseUrl = "http://${dotenv.env['BASE_URL']!}";
-
   ApiService();
 
   /// Получение всех накладных
   Future<List<Invoice>> fetchInvoices({int page = 0, int size = 10}) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/invoices?pageNumber=$page&pageSize=$size'),
+      Uri.parse(
+          '${ApiConfig.baseUrl}/invoices?pageNumber=$page&pageSize=$size'),
     );
 
     if (response.statusCode == 200) {
@@ -35,7 +33,7 @@ class ApiService {
   /// Получение накладной по ID
   Future<Invoice> fetchInvoiceById(int invoiceId) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/invoices/$invoiceId'),
+      Uri.parse('${ApiConfig.baseUrl}/invoices/$invoiceId'),
     );
 
     if (response.statusCode == 200) {
@@ -47,7 +45,7 @@ class ApiService {
 
   Future<void> deleteInvoice(int invoiceId) async {
     final response = await http.delete(
-      Uri.parse('$baseUrl/invoices/$invoiceId'),
+      Uri.parse('${ApiConfig.baseUrl}/invoices/$invoiceId'),
     );
 
     if (response.statusCode != 200) {
@@ -59,7 +57,7 @@ class ApiService {
   /// Сохранение накладной
   Future<void> saveInvoice(Invoice invoice) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/invoices/save'),
+      Uri.parse('${ApiConfig.baseUrl}/invoices/save'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode(invoice.toJson()),
     );
@@ -69,31 +67,44 @@ class ApiService {
     }
   }
 
-  /// Получение всех накладных
+  /// Метод для списания товара
+  Future<void> writeOffItem(WriteOffRequest request) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/warehouse/write-off');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(request.toJson()),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Ошибка при списании: ${response.body}');
+    }
+  }
+
+  /// Получение всех источников (ингредиенты, ПФ)
   Future<List<Source>> fetchSources() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/sources/all'),
+      Uri.parse('${ApiConfig.baseUrl}/sources/all'),
     );
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       return data.map((json) => Source.fromJson(json)).toList();
     } else {
-      throw Exception('Ошибка при получении списка ингридиентов и ПФок');
+      throw Exception('Ошибка при получении списка ингредиентов и ПФ');
     }
   }
 
   Future<List<Source>> fetchPrepacks() async {
-    debugPrint('Пробуем Prepacks');
+    debugPrint('Запрос Prepacks');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/sources/prepacks'),
+      Uri.parse('${ApiConfig.baseUrl}/sources/prepacks'),
     );
 
-    debugPrint('Получили Prepacks');
+    debugPrint('Ответ Prepacks');
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
-      // Преобразуем каждый элемент в Source
       return data.map((json) => Source.fromJson(json)).toList();
     } else {
       throw Exception('Ошибка при получении списка заготовок (Prepacks)');
@@ -102,25 +113,24 @@ class ApiService {
 
   Future<List<PrepackRecipeItem>> fetchPrepackRecipe(int prepackId) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/processing/recipe/$prepackId'),
+      Uri.parse('${ApiConfig.baseUrl}/processing/recipe/$prepackId'),
     );
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       return data.map((json) => PrepackRecipeItem.fromJson(json)).toList();
     } else {
-      throw Exception('Ошибка при получения рецепта заготовки (Prepacks)');
+      throw Exception('Ошибка при получении рецепта заготовки (Prepacks)');
     }
   }
 
   Future<void> saveProcessing(ProcessingActDto dto) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/processing/save'),
+      Uri.parse('${ApiConfig.baseUrl}/processing/save'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode(dto.toJson()),
     );
 
-    // На бэке метод ничего не возвращает, но проверяем статус
     if (response.statusCode != 200) {
       throw Exception('Ошибка при сохранении обработки (ProcessingAct)');
     }
@@ -128,8 +138,9 @@ class ApiService {
 
   Future<List<ProcessingAct>> fetchProcessingActs() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/processing/acts'),
+      Uri.parse('${ApiConfig.baseUrl}/processing/acts'),
     );
+
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       return data.map((json) => ProcessingAct.fromJson(json)).toList();
@@ -141,32 +152,33 @@ class ApiService {
   Future<CompliteProcessingAct> fetchProcessingActItems(
       int processingActId) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/processing/acts/$processingActId'),
+      Uri.parse('${ApiConfig.baseUrl}/processing/acts/$processingActId'),
     );
+
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = json.decode(response.body);
       return CompliteProcessingAct.fromJson(data);
     } else {
       throw Exception(
-          'Ошибка при получении акта обработки (ProcessingAct): ${response.statusCode}');
+          'Ошибка при получении акта обработки: ${response.statusCode}');
     }
   }
 
   Future<void> deleteProcessingAct(int processingActId) async {
     final response = await http.delete(
-      Uri.parse('$baseUrl/processing/$processingActId'),
+      Uri.parse('${ApiConfig.baseUrl}/processing/$processingActId'),
     );
 
     if (response.statusCode != 200) {
       throw Exception(
-          'Ошибка при удалении накладной. Код: ${response.statusCode}');
+          'Ошибка при удалении акта обработки. Код: ${response.statusCode}');
     }
   }
 
-  /// Получение всех ингредиентов (IngredientItemData)
+  /// Получение всех ингредиентов
   Future<List<IngredientItemData>> fetchIngredientItems() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/warehouse/ingredients'),
+      Uri.parse('${ApiConfig.baseUrl}/warehouse/ingredients'),
     );
 
     if (response.statusCode == 200) {
@@ -177,30 +189,17 @@ class ApiService {
     }
   }
 
-  /// Получение всех PrepackItemData (полуфабрикатов)
+  /// Получение всех полуфабрикатов
   Future<List<PrepackItemData>> fetchPrepackItems() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/warehouse/prepacks'),
+      Uri.parse('${ApiConfig.baseUrl}/warehouse/prepacks'),
     );
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
       return data.map((jsonEl) => PrepackItemData.fromJson(jsonEl)).toList();
     } else {
-      throw Exception('Ошибка при получении списка полуфабрикатов (prepacks)');
-    }
-  }
-
-  Future<void> writeOffItem(WriteOffRequest request) async {
-    final url = Uri.parse('$baseUrl/warehouse/write-off');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(request.toJson()),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('Ошибка при списании: ${response.body}');
+      throw Exception('Ошибка при получении списка полуфабрикатов');
     }
   }
 }

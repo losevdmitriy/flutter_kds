@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:regexed_validator/regexed_validator.dart';
 
 class IpInputDialog extends StatefulWidget {
@@ -11,32 +12,74 @@ class IpInputDialog extends StatefulWidget {
 }
 
 class _IpInputDialogState extends State<IpInputDialog> {
-  final TextEditingController _controller = TextEditingController();
-  String? _errorText;
+  final TextEditingController _ipController = TextEditingController();
+  final TextEditingController _portController = TextEditingController();
+
+  String? _ipErrorText;
+  String? _portErrorText;
+
+  /// Проверяет, является ли строка корректным IP-адресом (IPv4 или IPv6).
+  bool _isValidIp(String ip) {
+    return validator.ip(ip); // Используем библиотеку regexed_validator
+  }
+
+  /// Проверяет, является ли введённый порт числом в диапазоне 1-65535.
+  bool _isValidPort(String port) {
+    final portNumber = int.tryParse(port);
+    return portNumber != null && portNumber >= 1 && portNumber <= 65535;
+  }
 
   void _validateAndSubmit() {
-    String ip = _controller.text.trim();
-    if (validator.ip(ip)) {
-      widget.onIpEntered(ip);
+    String ip = _ipController.text.trim();
+    String port = _portController.text.trim();
+
+    setState(() {
+      _ipErrorText = _isValidIp(ip) ? null : "Введите корректный IP-адрес";
+      _portErrorText = _isValidPort(port) ? null : "Введите порт (1-65535)";
+    });
+
+    if (_ipErrorText == null && _portErrorText == null) {
+      String fullAddress = "$ip:$port";
+      widget.onIpEntered(fullAddress);
       Navigator.of(context).pop();
-    } else {
-      setState(() {
-        _errorText = "Введите корректный IP-адрес";
-      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text("Введите IP-адрес"),
-      content: TextField(
-        controller: _controller,
-        keyboardType: TextInputType.number,
-        decoration: InputDecoration(
-          hintText: "192.168.1.1",
-          errorText: _errorText,
-        ),
+      title: const Text("Введите IP-адрес и порт"),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _ipController,
+            keyboardType: const TextInputType.numberWithOptions(
+                decimal: true), // Числовая клавиатура с точкой
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(
+                  "[0-9.:]")), // Разрешает только цифры, точки и двоеточия
+            ],
+            decoration: InputDecoration(
+              labelText: "IP-адрес",
+              hintText: "192.168.1.1",
+              errorText: _ipErrorText,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _portController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly, // Только цифры
+            ],
+            decoration: InputDecoration(
+              labelText: "Порт",
+              hintText: "8080",
+              errorText: _portErrorText,
+            ),
+          ),
+        ],
       ),
       actions: [
         TextButton(

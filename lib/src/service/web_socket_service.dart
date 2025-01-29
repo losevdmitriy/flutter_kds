@@ -1,12 +1,11 @@
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
+import 'package:flutter_iem_new/src/config/api_config.dart'; // Импортируем ApiConfig
 
 class WebSocketService {
   StompClient? _stompClient;
 
   bool get isConnected => _stompClient?.connected == true;
-  String ip = dotenv.env['BASE_URL']!;
 
   void connect({
     required String screenId,
@@ -19,12 +18,16 @@ class WebSocketService {
       print('[WebSocketService] Already connected, skip.');
       return;
     }
+
+    final wsUrl =
+        "ws://${ApiConfig.ip}:${ApiConfig.port}/ws"; // Используем ApiConfig
+
     _stompClient = StompClient(
       config: StompConfig(
-        url: "ws://${ip}/ws",
+        url: wsUrl,
         onConnect: (StompFrame frame) {
-          print('Connected to WebSocket');
-          // Подписываемся
+          print('Connected to WebSocket at $wsUrl');
+          // Подписки
           _subscribeToNotifications(screenId, onMessage);
           _subscribeToOrders(screenId, onMessage);
           _subscribeToRefreshAll(onMessage);
@@ -36,7 +39,6 @@ class WebSocketService {
         },
         onStompError: (StompFrame frame) {
           print('STOMP error: ${frame.body}');
-          // Обычно после ошибки - отключаемся
           onDisconnect?.call();
         },
         onWebSocketError: (dynamic error) {
@@ -65,10 +67,6 @@ class WebSocketService {
         }
       },
     );
-  }
-
-  void setAddress(String ip) {
-    this.ip = ip;
   }
 
   void _subscribeToRefreshAll(
@@ -123,7 +121,7 @@ class WebSocketService {
     _stompClient!.send(destination: destination, body: '');
   }
 
-  void sendGetAllOrdersWithItems(String screenId) {
+  void sendGetAllOrdersWithItems() {
     if (!_canSend()) {
       print('[sendGetAllOrdersWithItems] Not connected -> skip');
       return;

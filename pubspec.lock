@@ -237,14 +237,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
+  regexed_validator:
+    dependency: "direct main"
+    description:
+      name: regexed_validator
+      sha256: "8ecbfc90927820f4fedefb094f357f8e4ba56808d8f0dcf3c6a1a262855a3872"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0+1"
   searchfield:
     dependency: "direct main"
     description:
       name: searchfield
-      sha256: "4feb30fb730010cce3bd53c065cc9acc2cd1833a4ab8263ba9575293f09a1e3f"
+      sha256: "9d091c2731868926e2aeb9ac551d1b9116a4533a424373119509d754ae0d0f45"
       url: "https://pub.dev"
     source: hosted
-    version: "1.2.2"
+    version: "1.2.4"
   sky_engine:
     dependency: transitive
     description: flutter

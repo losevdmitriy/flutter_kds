@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_iem_new/src/service/web_socket_service.dart';
-import '../dto/orderItemDto.dart'; // ваши модели
+import '../dto/orderItemDto.dart';
 
 class ChefScreenPage extends StatefulWidget {
   final String initialScreenId;
@@ -112,17 +112,6 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
     }
   }
 
-  void _showIpDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => IpInputDialog(
-        onIpEntered: (ip) {
-          _webSocketService.setAddress(ip);
-        },
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -134,8 +123,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
               _isConnected ? Icons.wifi : Icons.wifi_off,
               color: _isConnected ? Colors.green : Colors.red,
             ),
-            onPressed: _showIpDialog,
-            tooltip: 'Настроить IP-адрес',
+            onPressed: _refreshOrders,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
