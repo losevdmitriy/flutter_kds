@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_iem_new/src/page/Warehouse/warehouse_page.dart';
 import 'package:flutter_iem_new/src/page/collector_screen_page.dart';
 import 'src/page/processing_screens/all_processing_acts_screen.dart';
 import 'src/page/start_page.dart';
 import 'src/page/chef_screen_page.dart';
 
-void main() {
+Future<void> main() async {
+  const String envFile = bool.fromEnvironment('dart.vm.product') 
+      ? '.env.production' 
+      : '.env.development';
+
+  await dotenv.load(fileName: envFile);
   runApp(const MyApp());
 }
 

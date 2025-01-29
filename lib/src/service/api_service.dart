@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_iem_new/src/dto/Invoice.dart';
 import 'package:flutter_iem_new/src/dto/processing_screens/ProcessingAct.dart';
 import 'package:flutter_iem_new/src/dto/Source.dart';
@@ -13,7 +14,7 @@ import '../dto/processing_screens/compliteProcessingAct.dart';
 import '../dto/writeOffRequest.dart';
 
 class ApiService {
-  static const String baseUrl = "http://192.168.0.15:8000";
+  static final String baseUrl = "http://${dotenv.env['BASE_URL']!}";
 
   ApiService();
 

@@ -112,15 +112,30 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
     }
   }
 
+  void _showIpDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => IpInputDialog(
+        onIpEntered: (ip) {
+          _webSocketService.setAddress(ip);
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.name),
         actions: [
-          Icon(
-            _isConnected ? Icons.wifi : Icons.wifi_off,
-            color: _isConnected ? Colors.green : Colors.red,
+          IconButton(
+            icon: Icon(
+              _isConnected ? Icons.wifi : Icons.wifi_off,
+              color: _isConnected ? Colors.green : Colors.red,
+            ),
+            onPressed: _showIpDialog,
+            tooltip: 'Настроить IP-адрес',
           ),
           IconButton(
             icon: const Icon(Icons.refresh),

@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 
 class WebSocketService {
   StompClient? _stompClient;
 
   bool get isConnected => _stompClient?.connected == true;
+  String ip = dotenv.env['BASE_URL']!;
 
   void connect({
     required String screenId,
@@ -19,7 +21,7 @@ class WebSocketService {
     }
     _stompClient = StompClient(
       config: StompConfig(
-        url: 'ws://192.168.0.15:8000/ws',
+        url: "ws://${ip}/ws",
         onConnect: (StompFrame frame) {
           print('Connected to WebSocket');
           // Подписываемся
@@ -63,6 +65,10 @@ class WebSocketService {
         }
       },
     );
+  }
+
+  void setAddress(String ip) {
+    this.ip = ip;
   }
 
   void _subscribeToRefreshAll(
