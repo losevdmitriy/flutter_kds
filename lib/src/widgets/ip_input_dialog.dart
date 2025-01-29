@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_iem_new/src/config/api_config.dart';
 import 'package:regexed_validator/regexed_validator.dart';
 
 class IpInputDialog extends StatefulWidget {
-  final Function(String) onIpEntered;
+  final Function(String address) onIpEntered;
 
   const IpInputDialog({Key? key, required this.onIpEntered}) : super(key: key);
 
@@ -34,11 +35,17 @@ class _IpInputDialogState extends State<IpInputDialog> {
     String port = _portController.text.trim();
 
     setState(() {
-      _ipErrorText = _isValidIp(ip) ? null : "Введите корректный IP-адрес";
-      _portErrorText = _isValidPort(port) ? null : "Введите порт (1-65535)";
+      if (ip.isNotEmpty) {
+        _ipErrorText = _isValidIp(ip) ? null : "Введите корректный IP-адрес";
+      }
+      if (port.isNotEmpty) {
+        _portErrorText = _isValidPort(port) ? null : "Введите порт (1-65535)";
+      }
     });
 
     if (_ipErrorText == null && _portErrorText == null) {
+      ApiConfig.ip = ip;
+      ApiConfig.port = int.parse(port);
       String fullAddress = "$ip:$port";
       widget.onIpEntered(fullAddress);
       Navigator.of(context).pop();
@@ -62,7 +69,7 @@ class _IpInputDialogState extends State<IpInputDialog> {
             ],
             decoration: InputDecoration(
               labelText: "IP-адрес",
-              hintText: "192.168.1.1",
+              hintText: ApiConfig.ip,
               errorText: _ipErrorText,
             ),
           ),
@@ -75,7 +82,7 @@ class _IpInputDialogState extends State<IpInputDialog> {
             ],
             decoration: InputDecoration(
               labelText: "Порт",
-              hintText: "8080",
+              hintText: ApiConfig.port.toString(),
               errorText: _portErrorText,
             ),
           ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_iem_new/src/config/api_config.dart';
 import 'package:flutter_iem_new/src/widgets/ip_input_dialog.dart';
 import 'package:flutter_iem_new/src/page/all_invoices_act_page.dart';
 
@@ -12,12 +11,6 @@ class StartPage extends StatelessWidget {
       context: context,
       builder: (context) => IpInputDialog(
         onIpEntered: (String fullAddress) {
-          // Разбиваем "IP:PORT" и обновляем `ApiConfig`
-          final parts = fullAddress.split(':');
-          if (parts.length == 2) {
-            ApiConfig.ip = parts[0];
-            ApiConfig.port = int.tryParse(parts[1]) ?? 80;
-          }
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("IP-адрес успешно обновлен!")),
           );
