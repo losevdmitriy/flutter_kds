@@ -5,10 +5,11 @@ import 'package:flutter_iem_new/src/page/collector_screen_page.dart';
 import 'src/page/processing_screens/all_processing_acts_screen.dart';
 import 'src/page/start_page.dart';
 import 'src/page/chef_screen_page.dart';
+import 'src/page/termal_print_page.dart';
 
 Future<void> main() async {
-  const String envFile = bool.fromEnvironment('dart.vm.product') 
-      ? '.env.production' 
+  const String envFile = bool.fromEnvironment('dart.vm.product')
+      ? '.env.production'
       : '.env.development';
 
   await dotenv.load(fileName: envFile);
@@ -45,6 +46,8 @@ class MyApp extends StatelessWidget {
               builder: (context) => AllProcessingActsScreen());
         } else if (settings.name == '/warehouse') {
           return MaterialPageRoute(builder: (context) => WarehouseScreen());
+        } else if (settings.name == '/print') {
+          return MaterialPageRoute(builder: (context) => ThermalPrintPage());
         }
         // Неизвестный маршрут
         return MaterialPageRoute(

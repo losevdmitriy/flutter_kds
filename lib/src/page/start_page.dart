@@ -108,6 +108,15 @@ class StartPage extends StatelessWidget {
                 );
               },
             ),
+            ElevatedButton(
+              child: const Text("Принтер"),
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  '/print',
+                );
+              },
+            ),
             const SizedBox(height: 16),
           ],
         ),
