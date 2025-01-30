@@ -1,310 +1,191 @@
-// ignore_for_file: depend_on_referenced_packages
-
-import 'dart:async';
-import 'dart:developer';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'dart:async';
+
+import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_thermal_printer/flutter_thermal_printer.dart';
-import 'package:flutter_thermal_printer/utils/printer.dart';
+import 'package:flutter_iem_new/src/utils/function_page.dart';
 
 class ThermalPrintPage extends StatefulWidget {
   const ThermalPrintPage({Key? key}) : super(key: key);
 
   @override
-  State<ThermalPrintPage> createState() => _ThermalPrintPageState();
+  State<ThermalPrintPage> createState() => _HomePageState();
 }
 
-class _ThermalPrintPageState extends State<ThermalPrintPage> {
-  final _flutterThermalPrinterPlugin = FlutterThermalPrinter.instance;
-
-  String _ip = '192.168.0.100';
-  String _port = '9100';
-
-  List<Printer> printers = [];
-  StreamSubscription<List<Printer>>? _devicesStreamSubscription;
-
-  // Метод для поиска принтеров
-  void startScan() async {
-    _devicesStreamSubscription?.cancel();
-
-    // Подбирайте нужные ConnectionType в зависимости от ситуации
-    await _flutterThermalPrinterPlugin.getPrinters(connectionTypes: [
-      ConnectionType.USB,
-      // ConnectionType.BLE,
-    ]);
-
-    _devicesStreamSubscription = _flutterThermalPrinterPlugin.devicesStream
-        .listen((List<Printer> event) {
-      log(event.map((e) => e.name).toList().toString());
-      setState(() {
-        printers = event;
-        // Удаляем устройства без имени
-        printers.removeWhere(
-            (element) => element.name == null || element.name!.isEmpty);
-      });
-    });
-  }
-
-  // Остановка поиска принтеров
-  void stopScan() {
-    _flutterThermalPrinterPlugin.stopScan();
-  }
+class _HomePageState extends State<ThermalPrintPage> {
+  BluetoothDevice? _device;
+  late StreamSubscription<bool> _isScanningSubscription;
+  late StreamSubscription<BlueState> _blueStateSubscription;
+  late StreamSubscription<ConnectState> _connectStateSubscription;
+  late StreamSubscription<Uint8List> _receivedDataSubscription;
+  late StreamSubscription<List<BluetoothDevice>> _scanResultsSubscription;
+  late List<BluetoothDevice> _scanResults;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      startScan();
-    });
+    initBluetoothPrintPlusListen();
   }
 
   @override
   void dispose() {
-    // Не забывайте отменять подписку
-    _devicesStreamSubscription?.cancel();
     super.dispose();
+    _isScanningSubscription.cancel();
+    _blueStateSubscription.cancel();
+    _connectStateSubscription.cancel();
+    _receivedDataSubscription.cancel();
+    _scanResultsSubscription.cancel();
+    _scanResults.clear();
+    _device = null;
+  }
+
+  Future<void> initBluetoothPrintPlusListen() async {
+    /// listen scanResults
+    _scanResultsSubscription = BluetoothPrintPlus.scanResults.listen((event) {
+      if (mounted) {
+        setState(() {
+          _scanResults = event;
+        });
+      }
+    });
+
+    /// listen isScanning
+    _isScanningSubscription = BluetoothPrintPlus.isScanning.listen((event) {
+      print('********** isScanning: $event **********');
+      if (mounted) {
+        setState(() {});
+      }
+    });
+
+    /// listen blue state
+    _blueStateSubscription = BluetoothPrintPlus.blueState.listen((event) {
+      print('********** blueState change: $event **********');
+      if (mounted) {
+        setState(() {});
+      }
+    });
+
+    /// listen connect state
+    _connectStateSubscription = BluetoothPrintPlus.connectState.listen((event) {
+      print('********** connectState change: $event **********');
+      switch (event) {
+        case ConnectState.connected:
+          setState(() {
+            if (_device == null) return;
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => FunctionPage(_device!)));
+          });
+          break;
+        case ConnectState.disconnected:
+          setState(() {
+            _device = null;
+          });
+          break;
+      }
+    });
+
+    /// listen received data
+    _receivedDataSubscription = BluetoothPrintPlus.receivedData.listen((data) {
+      print('********** received data: $data **********');
+
+      /// do something...
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Thermal Printer Example'),
-        systemOverlayStyle: const SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text('BluetoothPrintPlus'),
         ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'NETWORK',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              initialValue: _ip,
-              decoration: const InputDecoration(
-                labelText: 'Enter IP Address',
-              ),
-              onChanged: (value) {
-                _ip = value;
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              initialValue: _port,
-              decoration: const InputDecoration(
-                labelText: 'Enter Port',
-              ),
-              onChanged: (value) {
-                _port = value;
-              },
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final service = FlutterThermalPrinterNetwork(
-                        _ip,
-                        port: int.parse(_port),
-                      );
-                      await service.connect();
-                      final profile = await CapabilityProfile.load();
-                      final generator = Generator(PaperSize.mm80, profile);
-
-                      if (!mounted) return;
-                      // Печатаем виджет
-                      List<int> bytes =
-                          await FlutterThermalPrinter.instance.screenShotWidget(
-                        context,
-                        generator: generator,
-                        widget: receiptWidget("Network"),
-                      );
-
-                      // Добавляем команду обрезки
-                      bytes += generator.cut();
-
-                      // Печать
-                      await service.printTicket(bytes);
-
-                      // Отключаемся
-                      await service.disconnect();
-                    },
-                    child: const Text('Test network printer'),
-                  ),
-                ),
-                const SizedBox(width: 22),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      final service = FlutterThermalPrinterNetwork(
-                        _ip,
-                        port: int.parse(_port),
-                      );
-                      await service.connect();
-                      final bytes = await _generateReceipt();
-                      await service.printTicket(bytes);
-                      await service.disconnect();
-                    },
-                    child: const Text('Test network printer widget'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const Divider(),
-            const SizedBox(height: 22),
-            Text(
-              'USB/BLE',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 22),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: startScan,
-                    child: const Text('Get Printers'),
-                  ),
-                ),
-                const SizedBox(width: 22),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: stopScan,
-                    child: const Text('Stop Scan'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: ListView.builder(
-                itemCount: printers.length,
-                itemBuilder: (context, index) {
-                  final printer = printers[index];
-                  return ListTile(
-                    onTap: () async {
-                      if (printer.isConnected == true) {
-                        await _flutterThermalPrinterPlugin.disconnect(printer);
-                      } else {
-                        await _flutterThermalPrinterPlugin.connect(printer);
-                      }
-                      setState(() {});
-                    },
-                    title: Text(printer.name ?? 'No Name'),
-                    subtitle: Text("Connected: ${printer.isConnected == true}"),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.connect_without_contact),
-                      onPressed: () async {
-                        await _flutterThermalPrinterPlugin.printWidget(
-                          context,
-                          printer: printer,
-                          widget: receiptWidget(
-                            printer.connectionTypeString,
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+        body: SafeArea(
+            child: BluetoothPrintPlus.isBlueOn
+                ? ListView(
+                    children: _scanResults
+                        .map((device) => Container(
+                              padding: EdgeInsets.only(
+                                  left: 10, right: 10, bottom: 5),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                      child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(device.name),
+                                      Text(
+                                        device.address,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                            fontSize: 12, color: Colors.grey),
+                                      ),
+                                      Divider(),
+                                    ],
+                                  )),
+                                  SizedBox(
+                                    width: 10,
+                                  ),
+                                  OutlinedButton(
+                                    onPressed: () async {
+                                      _device = device;
+                                      await BluetoothPrintPlus.connect(device);
+                                    },
+                                    child: const Text("connect"),
+                                  )
+                                ],
+                              ),
+                            ))
+                        .toList(),
+                  )
+                : buildBlueOffWidget()),
+        floatingActionButton:
+            BluetoothPrintPlus.isBlueOn ? buildScanButton(context) : null);
   }
 
-  // Пример генерации простого чека с помощью generator
-  Future<List<int>> _generateReceipt() async {
-    final profile = await CapabilityProfile.load();
-    final generator = Generator(PaperSize.mm80, profile);
-    List<int> bytes = [];
-
-    bytes += generator.text(
-      "Teste Network print",
-      styles: const PosStyles(
-        bold: true,
-        height: PosTextSize.size3,
-        width: PosTextSize.size3,
-      ),
-    );
-    bytes += generator.cut();
-    return bytes;
+  Widget buildBlueOffWidget() {
+    return Center(
+        child: Text(
+      "Bluetooth is turned off\nPlease turn on Bluetooth...",
+      style: TextStyle(
+          fontWeight: FontWeight.w700, fontSize: 16, color: Colors.red),
+      textAlign: TextAlign.center,
+    ));
   }
 
-  // Виджет, который мы печатаем (генерируется в виде картинки, затем переводится в байты)
-  Widget receiptWidget(String printerType) {
-    return SizedBox(
-      width: 380,
-      child: Material(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Center(
-                child: Text(
-                  'FLUTTER THERMAL PRINTER',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const Divider(thickness: 2),
-              const SizedBox(height: 10),
-              _buildReceiptRow('Item', 'Price'),
-              const Divider(),
-              _buildReceiptRow('Apple', '\$1.00'),
-              _buildReceiptRow('Banana', '\$0.50'),
-              _buildReceiptRow('Orange', '\$0.75'),
-              const Divider(thickness: 2),
-              _buildReceiptRow('Total', '\$2.25', isBold: true),
-              const SizedBox(height: 20),
-              _buildReceiptRow('Printer Type', printerType),
-              const SizedBox(height: 50),
-              const Center(
-                child: Text(
-                  'Thank you for your purchase!',
-                  style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  Widget buildScanButton(BuildContext context) {
+    if (BluetoothPrintPlus.isScanningNow) {
+      return FloatingActionButton(
+        onPressed: onStopPressed,
+        backgroundColor: Colors.red,
+        child: Icon(Icons.stop),
+      );
+    } else {
+      return FloatingActionButton(
+          onPressed: onScanPressed,
+          backgroundColor: Colors.green,
+          child: Text("SCAN"));
+    }
   }
 
-  Widget _buildReceiptRow(String leftText, String rightText,
-      {bool isBold = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            leftText,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          Text(
-            rightText,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
-    );
+  Future onScanPressed() async {
+    try {
+      await BluetoothPrintPlus.startScan(timeout: Duration(seconds: 10));
+    } catch (e) {
+      print("onScanPressed error: $e");
+    }
+  }
+
+  Future onStopPressed() async {
+    try {
+      BluetoothPrintPlus.stopScan();
+    } catch (e) {
+      print("onStopPressed error: $e");
+    }
   }
 }
