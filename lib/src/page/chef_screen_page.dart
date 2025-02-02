@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:flutter_iem_new/src/service/web_socket_service.dart';
 import '../dto/orderItemDto.dart';
 
@@ -63,6 +64,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(payload.toString())),
             );
+            FlutterRingtonePlayer().playNotification();
             // Запрашиваем обновление списка, если соединение есть
             if (_isConnected) {
               _webSocketService.sendGetAllOrderItems(screenId);

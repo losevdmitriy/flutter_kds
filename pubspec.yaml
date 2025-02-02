@@ -20,6 +20,7 @@ dependencies:
   flutter_dotenv: ^5.0.2
   regexed_validator: ^2.0.0+1
   flutter_thermal_printer: ^1.0.1
+  flutter_ringtone_player: ^4.0.0+3
 
 dev_dependencies:
   flutter_test:

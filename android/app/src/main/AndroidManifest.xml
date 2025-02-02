@@ -1,5 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.flutter_iem_new">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.flutter_iem_new">
 
     <!-- ************************************** -->
     <!-- Разрешения и фичи для USB-принтеров   -->
@@ -26,33 +25,21 @@
     <!-- ********************************************* -->
     <!-- Новые разрешения Bluetooth для Android 12+   -->
     <!-- ********************************************* -->
-    <uses-permission
-        android:name="android.permission.BLUETOOTH_SCAN"
-        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <!-- Разрешение для управления уведомлениями -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY"/>
+
 
     <!-- ********************************************* -->
     <!-- Блок application со всеми вашими Activity и т.д. -->
     <!-- ********************************************* -->
-    <application
-        android:label="flutter_iem_new"
-        android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+    <application android:label="flutter_iem_new" android:name="${applicationName}" android:icon="@mipmap/ic_launcher">
 
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:launchMode="singleTop"
-            android:taskAffinity=""
-            android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-            android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop" android:taskAffinity="" android:theme="@style/LaunchTheme" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" android:hardwareAccelerated="true" android:windowSoftInputMode="adjustResize">
 
-            <meta-data
-                android:name="io.flutter.embedding.android.NormalTheme"
-                android:resource="@style/NormalTheme" />
+            <meta-data android:name="io.flutter.embedding.android.NormalTheme" android:resource="@style/NormalTheme" />
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -62,9 +49,7 @@
 
         <!-- Не удаляйте следующий meta-data:
              Используется инструментами Flutter для автогенерации кода (PluginRegistrant) -->
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2" />
+        <meta-data android:name="flutterEmbedding" android:value="2" />
 
     </application>
 
