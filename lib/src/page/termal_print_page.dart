@@ -1,3 +1,5 @@
+// ignore_for_file: depend_on_referenced_packages
+
 import 'dart:async';
 import 'dart:developer';
 
@@ -28,8 +30,7 @@ class _ThermalPrintPageState extends State<ThermalPrintPage> {
 
     // Подбирайте нужные ConnectionType в зависимости от ситуации
     await _flutterThermalPrinterPlugin.getPrinters(connectionTypes: [
-      ConnectionType.USB,
-      // ConnectionType.BLE,
+      ConnectionType.BLE,
     ]);
 
     _devicesStreamSubscription = _flutterThermalPrinterPlugin.devicesStream
