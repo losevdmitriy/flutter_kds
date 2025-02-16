@@ -20,15 +20,13 @@ class ChefScreenPage extends StatefulWidget {
 
 class _ChefScreenPageState extends State<ChefScreenPage> {
   static const Color COLOR_IN_PROGRESS = Colors.lightBlue;
-  // static const Color COLOR_WAITING_WARNING = Colors.orange;
-  // static const int SECONDS_WAITING_WARNING = 20000;
   static const Color COLOR_COOKING_WARNING = Color(0xffff6969);
-  // static const int SECONDS_COOKING_WARNING = 30000;
 
   final WebSocketService _webSocketService = WebSocketService();
 
   List<OrderItemDto> orders = [];
   Timer? _timer;
+  Timer? _reconnectTimer;
   bool isLoading = true;
   bool _isConnected = false;
 
@@ -44,11 +42,16 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
       if (!mounted) return;
       setState(() {});
     });
+
+    _reconnectTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
+      _refreshOrders();
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _reconnectTimer?.cancel();
     _webSocketService.disconnect();
     super.dispose();
   }
@@ -59,13 +62,11 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
       onMessage: (String type, dynamic payload) {
         switch (type) {
           case 'NOTIFICATION':
-            // Перед любым взаимодействием с контекстом -> проверяем mounted
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(payload.toString())),
             );
             FlutterRingtonePlayer().playNotification();
-            // Запрашиваем обновление списка, если соединение есть
             if (_isConnected) {
               _webSocketService.sendGetAllOrderItems(screenId);
             }
@@ -90,12 +91,10 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
         }
       },
       onConnect: () {
-        // Если экран уже dispose, выходим
         if (!mounted) return;
         setState(() {
           _isConnected = true;
         });
-        // Запрашиваем все заказы
         _webSocketService.sendGetAllOrderItems(screenId);
       },
       onDisconnect: () {
@@ -175,9 +174,6 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
       }
     } else {
       timeLabel = "Ожидание: $elapsedSeconds сек";
-      // if (elapsedSeconds > SECONDS_WAITING_WARNING) {
-      //   backgroundColor = COLOR_WAITING_WARNING;
-      // }
     }
 
     return GestureDetector(

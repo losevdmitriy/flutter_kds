@@ -21,6 +21,7 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
   final Map<int, bool> itemClickedState = {};
 
   Timer? _timer;
+  Timer? _reconnectTimer;
   bool _isFirstBuild = true;
   bool _isConnected = false;
 
@@ -30,6 +31,9 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
     // Таймер для обновления UI
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {}); // Просто перерисовка каждую секунду
+    });
+    _reconnectTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
+      _reconnect();
     });
   }
 
@@ -45,6 +49,7 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _reconnectTimer?.cancel();
     webSocketService.disconnect();
     super.dispose();
   }
