@@ -10,6 +10,7 @@ import '../dto/processing_screens/PrepackRecipeItem.dart';
 import '../dto/IngredientItemData.dart';
 import '../dto/PrepackItemData.dart';
 import '../dto/processing_screens/compliteProcessingAct.dart';
+import '../dto/writeOffItemData.dart';
 import '../dto/writeOffRequest.dart'; // Импортируем WriteOffRequest
 
 class ApiService {
@@ -200,6 +201,22 @@ class ApiService {
       return data.map((jsonEl) => PrepackItemData.fromJson(jsonEl)).toList();
     } else {
       throw Exception('Ошибка при получении списка полуфабрикатов');
+    }
+  }
+
+  // Получение всех WriteOffItems
+  Future<List<WriteOffItemData>> fetchWriteOffItems(
+      int page, int elements) async {
+    final response = await http.get(
+      Uri.parse(
+          '${ApiConfig.baseUrl}/warehouse/allWriteOff?p=$page&e=$elements'),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((jsonEl) => WriteOffItemData.fromJson(jsonEl)).toList();
+    } else {
+      throw Exception('Ошибка при получении списка списаний');
     }
   }
 }

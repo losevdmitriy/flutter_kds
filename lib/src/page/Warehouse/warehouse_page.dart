@@ -21,6 +21,10 @@ class _WarehouseScreenState extends State<WarehouseScreen>
   late Future<List<IngredientItemData>> _futureIngredients;
   late Future<List<PrepackItemData>> _futurePrepacks;
 
+  // Добавляем переменные состояния для сортировки
+  bool _isAscending = true;
+  int _sortColumnIndex = 0;
+
   @override
   void initState() {
     super.initState();
@@ -56,13 +60,30 @@ class _WarehouseScreenState extends State<WarehouseScreen>
           return const Center(child: Text('Нет ингредиентов на складе'));
         }
 
+        // Сортировка по ID
+        if (_sortColumnIndex == 0) {
+          items.sort((a, b) => _isAscending
+              ? (a.id ?? 0).compareTo(b.id ?? 0)
+              : (b.id ?? 0).compareTo(a.id ?? 0));
+        }
+
         return SingleChildScrollView(
           child: DataTable(
-            columns: const [
-              DataColumn(label: Text('ID')),
-              DataColumn(label: Text('Наименование')),
-              DataColumn(label: Text('Кол-во')),
-              DataColumn(label: Text('Списать')),
+            sortColumnIndex: _sortColumnIndex,
+            sortAscending: _isAscending,
+            columns: [
+              DataColumn(
+                label: const Text('ID'),
+                onSort: (columnIndex, ascending) {
+                  setState(() {
+                    _sortColumnIndex = columnIndex;
+                    _isAscending = ascending;
+                  });
+                },
+              ),
+              const DataColumn(label: Text('Наименование')),
+              const DataColumn(label: Text('Кол-во')),
+              const DataColumn(label: Text('Списать')),
             ],
             rows: items.map((ingredient) {
               return DataRow(cells: [
@@ -115,13 +136,30 @@ class _WarehouseScreenState extends State<WarehouseScreen>
           return const Center(child: Text('Нет полуфабрикатов на складе'));
         }
 
+        // Сортировка по ID
+        if (_sortColumnIndex == 0) {
+          items.sort((a, b) => _isAscending
+              ? (a.id ?? 0).compareTo(b.id ?? 0)
+              : (b.id ?? 0).compareTo(a.id ?? 0));
+        }
+
         return SingleChildScrollView(
           child: DataTable(
-            columns: const [
-              DataColumn(label: Text('ID')),
-              DataColumn(label: Text('Наименование')),
-              DataColumn(label: Text('Кол-во')),
-              DataColumn(label: Text('Списать')),
+            sortColumnIndex: _sortColumnIndex,
+            sortAscending: _isAscending,
+            columns: [
+              DataColumn(
+                label: const Text('ID'),
+                onSort: (columnIndex, ascending) {
+                  setState(() {
+                    _sortColumnIndex = columnIndex;
+                    _isAscending = ascending;
+                  });
+                },
+              ),
+              const DataColumn(label: Text('Наименование')),
+              const DataColumn(label: Text('Кол-во')),
+              const DataColumn(label: Text('Списать')),
             ],
             rows: items.map((prepack) {
               return DataRow(cells: [

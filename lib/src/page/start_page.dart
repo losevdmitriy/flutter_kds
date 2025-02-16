@@ -117,6 +117,15 @@ class StartPage extends StatelessWidget {
                 );
               },
             ),
+            ElevatedButton(
+              child: const Text("Списания"),
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  '/writeOff',
+                );
+              },
+            ),
             const SizedBox(height: 16),
           ],
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_iem_new/src/page/Warehouse/warehouse_page.dart';
+import 'package:flutter_iem_new/src/page/Warehouse/write_off_page.dart';
 import 'package:flutter_iem_new/src/page/collector_screen_page.dart';
 import 'src/page/processing_screens/all_processing_acts_screen.dart';
 import 'src/page/start_page.dart';
@@ -48,6 +49,8 @@ class MyApp extends StatelessWidget {
           return MaterialPageRoute(builder: (context) => WarehouseScreen());
         } else if (settings.name == '/print') {
           return MaterialPageRoute(builder: (context) => ThermalPrintPage());
+        } else if (settings.name == '/writeOff') {
+          return MaterialPageRoute(builder: (context) => WriteOffScreen());
         }
         // Неизвестный маршрут
         return MaterialPageRoute(
