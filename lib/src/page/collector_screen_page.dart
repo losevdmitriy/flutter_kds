@@ -28,9 +28,9 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
   @override
   void initState() {
     super.initState();
-    // Таймер для обновления UI
+    _connectToWebSocket(widget.initialScreenId);
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {}); // Просто перерисовка каждую секунду
+      setState(() {});
     });
     _reconnectTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
       _reconnect();
