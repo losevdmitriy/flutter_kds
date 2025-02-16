@@ -229,7 +229,7 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
             item.currentStation.id == 4)
         ? Colors.yellow.shade100
         : canTap
-            ? Colors.white
+            ? const Color.fromARGB(255, 0, 255, 64)
             : Colors.grey.shade200;
 
     return GestureDetector(
