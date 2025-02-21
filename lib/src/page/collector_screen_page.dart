@@ -148,48 +148,56 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
     );
   }
 
-  Widget? _buildOrderColumn(OrderFullDto orderDto) {
-    // Фильтрация
-    final filteredItems = orderDto.items.where((item) {
-      return item.status != OrderItemStationStatus.CANCELED &&
-          item.status != OrderItemStationStatus.COMPLETED &&
-          item.flowStepType != 'FINAL_STEP';
-    }).toList();
+Widget? _buildOrderColumn(OrderFullDto orderDto) {
+  final filteredItems = orderDto.items.where((item) {
+    return item.status != OrderItemStationStatus.CANCELED &&
+        item.status != OrderItemStationStatus.COMPLETED &&
+        item.flowStepType != 'FINAL_STEP' &&
+        !item.extra;
+  }).toList();
 
-    if (filteredItems.isEmpty) {
-      return null;
-    }
+  if (filteredItems.isEmpty) {
+    return null;
+  }
 
-    return Container(
-      width: 300,
-      margin: const EdgeInsets.only(right: 20),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade400),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(color: Colors.black12.withOpacity(0.15), blurRadius: 6),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Заголовок и кнопка "Заказ собран"
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            child: Column(
-              children: [
-                Text(
-                  'Заказ #${orderDto.name}',
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
+  // Проверяем, находятся ли ВСЕ позиции НЕ на станции 4
+  bool allItemsNotAtStation4 = orderDto.items.every((item) => item.currentStation.id == 4);
+
+  // Фильтруем позиции, у которых extra == true
+  final extraItems = orderDto.items.where((item) => item.extra).toList();
+
+  // Группируем и считаем количество повторений
+  Map<String, int> extraCounts = {};
+  for (var item in extraItems) {
+    extraCounts[item.name] = (extraCounts[item.name] ?? 0) + 1;
+  }
+
+  return Container(
+    width: 300,
+    margin: const EdgeInsets.only(right: 20),
+    decoration: BoxDecoration(
+      border: Border.all(color: Colors.grey.shade400),
+      borderRadius: BorderRadius.circular(8),
+      boxShadow: [BoxShadow(color: Colors.black12.withOpacity(0.15), blurRadius: 6)],
+    ),
+    child: Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Column(
+            children: [
+              Text(
+                'Заказ #${orderDto.name}',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              // Показываем кнопку только если ВСЕ позиции НЕ на станции 4
+              if (allItemsNotAtStation4)
                 ElevatedButton(
                   onPressed: () async {
                     if (!_isConnected) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Нет соединения с сервером'),
-                        ),
+                        const SnackBar(content: Text('Нет соединения с сервером')),
                       );
                       return;
                     }
@@ -199,27 +207,47 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
                     );
                     await _refreshPage();
                   },
-                  child: const Text('Заказ собран'),
+                  child: Text('Заказ собран'),
                 ),
-              ],
+              // Вывод списка extra-позиций, если они есть
+              if (extraCounts.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: extraCounts.entries.map((entry) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.start, // Выравнивание влево
+                        children: [
+                          Text(
+                            'x${entry.value} ', // Количество жирным
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            entry.key, // Название обычным шрифтом
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const Divider(height: 1, thickness: 1),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            child: Column(
+              children: filteredItems.map(_buildItemTile).toList(),
             ),
           ),
-          // Разделитель
-          const Divider(height: 1, thickness: 1),
-          // Расширяем на всю доступную высоту
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              // Колонка с позицями
-              child: Column(
-                children: filteredItems.map(_buildItemTile).toList(),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildItemTile(OrderItemDto item) {
     //TODO Добавить ENUM
@@ -281,7 +309,7 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Позиция: ${item.name}',
+              '${item.name}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             Text('Станция: ${item.currentStation.name}'),

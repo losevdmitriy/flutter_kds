@@ -65,8 +65,9 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(payload.toString())),
-            );
-            FlutterRingtonePlayer().playNotification();
+            );g
+            FlutterRingtonePlayer().play(ios: IosSounds.electronic, android: AndroidSounds.notification);
+            // Запрашиваем обновление списка, если соединение есть
             if (_isConnected) {
               _webSocketService.sendGetAllOrderItems(screenId);
             }
@@ -189,7 +190,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Заказ #${item.orderId}: ${item.name}",
+                    "#${item.orderName}: ${item.name}",
                     style: TextStyle(
                       fontSize: constraints.maxWidth * 0.08,
                       fontWeight: FontWeight.bold,
