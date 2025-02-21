@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:flutter_iem_new/src/widgets/ip_input_dialog.dart';
 import 'package:flutter_iem_new/src/page/all_invoices_act_page.dart';
 
@@ -70,7 +71,7 @@ class StartPage extends StatelessWidget {
             ),
             ElevatedButton(
               child: const Text("Сборка NEW"),
-              onPressed: () {
+              onPressed: () { 
                 Navigator.pushNamed(
                   context,
                   '/collect',

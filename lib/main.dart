@@ -6,7 +6,6 @@ import 'package:flutter_iem_new/src/page/collector_screen_page.dart';
 import 'src/page/processing_screens/all_processing_acts_screen.dart';
 import 'src/page/start_page.dart';
 import 'src/page/chef_screen_page.dart';
-import 'src/page/termal_print_page.dart';
 
 Future<void> main() async {
   const String envFile = bool.fromEnvironment('dart.vm.product')
@@ -48,9 +47,7 @@ class MyApp extends StatelessWidget {
         } else if (settings.name == '/warehouse') {
           return MaterialPageRoute(builder: (context) => WarehouseScreen());
         } else if (settings.name == '/print') {
-          return MaterialPageRoute(builder: (context) => ThermalPrintPage());
-        } else if (settings.name == '/writeOff') {
-          return MaterialPageRoute(builder: (context) => WriteOffScreen());
+          // return MaterialPageRoute(builder: (context) => FlutterBlueApp());
         }
         // Неизвестный маршрут
         return MaterialPageRoute(

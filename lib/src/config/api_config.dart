@@ -2,7 +2,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiConfig {
   static String _ip = dotenv.env['BASE_URL'] ?? "127.0.0.1";
-  static int _port = 80; // Значение по умолчанию
+  static int _port = int.parse(dotenv.env['BASE_PORT'] ?? "8000");
 
   /// Геттер для получения полного URL (IP + порт)
   static String get baseUrl => "http://$_ip:$_port";
