@@ -23,6 +23,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
   static const Color COLOR_COOKING_WARNING = Color(0xffff6969);
 
   final WebSocketService _webSocketService = WebSocketService();
+  final ScrollController _scrollController = ScrollController();
 
   List<OrderItemDto> orders = [];
   Timer? _timer;
@@ -53,6 +54,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
     _timer?.cancel();
     _reconnectTimer?.cancel();
     _webSocketService.disconnect();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -65,9 +67,8 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(payload.toString())),
-            );g
+            );
             FlutterRingtonePlayer().play(ios: IosSounds.electronic, android: AndroidSounds.notification);
-            // Запрашиваем обновление списка, если соединение есть
             if (_isConnected) {
               _webSocketService.sendGetAllOrderItems(screenId);
             }
@@ -86,7 +87,6 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
               isLoading = false;
             });
             break;
-
           default:
             debugPrint('Unknown message type: $type');
         }
@@ -145,19 +145,27 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
       return const Center(child: Text("Заказов нет"));
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 0.95,
+    return Scrollbar(
+      controller: _scrollController,
+      thumbVisibility: true,
+      thickness: 10.0,
+      radius: const Radius.circular(4.0),
+      child: GridView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(8, 8, 20, 8), // Увеличиваем отступ справа
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          childAspectRatio: 0.95,
+        ),
+        itemCount: orders.length,
+        itemBuilder: (context, index) {
+          final item = orders[index];
+          return _buildOrderCard(item);
+        },
       ),
-      itemCount: orders.length,
-      itemBuilder: (context, index) {
-        final item = orders[index];
-        return _buildOrderCard(item);
-      },
     );
   }
 
