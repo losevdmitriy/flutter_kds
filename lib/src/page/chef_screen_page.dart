@@ -21,6 +21,8 @@ class ChefScreenPage extends StatefulWidget {
 class _ChefScreenPageState extends State<ChefScreenPage> {
   static const Color COLOR_IN_PROGRESS = Colors.lightBlue;
   static const Color COLOR_COOKING_WARNING = Color(0xffff6969);
+  static const Color COLOR_PROCESSING =
+      Colors.grey; // Новый цвет для "в обработке"
 
   final WebSocketService _webSocketService = WebSocketService();
   final ScrollController _scrollController = ScrollController();
@@ -30,6 +32,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
   Timer? _reconnectTimer;
   bool isLoading = true;
   bool _isConnected = false;
+  Set<int> _processingOrders = {}; // Для отслеживания заказов в обработке
 
   @override
   void initState() {
@@ -68,7 +71,8 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(payload.toString())),
             );
-            FlutterRingtonePlayer().play(ios: IosSounds.electronic, android: AndroidSounds.notification);
+            FlutterRingtonePlayer().play(
+                ios: IosSounds.electronic, android: AndroidSounds.notification);
             if (_isConnected) {
               _webSocketService.sendGetAllOrderItems(screenId);
             }
@@ -85,6 +89,8 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
                   .map((e) => OrderItemDto.fromJson(e))
                   .toList();
               isLoading = false;
+              _processingOrders
+                  .clear(); // Очищаем обработку после обновления списка
             });
             break;
           default:
@@ -153,7 +159,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
       child: GridView.builder(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(8, 8, 20, 8), // Увеличиваем отступ справа
+        padding: const EdgeInsets.fromLTRB(8, 8, 20, 8),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
           crossAxisSpacing: 8,
@@ -171,12 +177,16 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
 
   Widget _buildOrderCard(OrderItemDto item) {
     final elapsedSeconds = DateTime.now().difference(item.createdAt).inSeconds;
+    final isProcessing = _processingOrders.contains(item.id);
 
     Color backgroundColor = Colors.white;
     String timeLabel;
 
-    if (item.status == OrderItemStationStatus.STARTED) {
-      backgroundColor = COLOR_IN_PROGRESS;
+    if (isProcessing) {
+      backgroundColor = COLOR_PROCESSING; // Серый цвет при обработке
+      timeLabel = "Обработка...";
+    } else if (item.status == OrderItemStationStatus.STARTED) {
+      backgroundColor = COLOR_IN_PROGRESS; // Синий цвет после ответа сервера
       timeLabel = "Готовка: $elapsedSeconds сек";
       if (elapsedSeconds > item.timeToCook) {
         backgroundColor = COLOR_COOKING_WARNING;
@@ -185,7 +195,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
       timeLabel = "Ожидание: $elapsedSeconds сек";
     }
 
-    return GestureDetector(
+    return InkWell(
       onTap: () => _onOrderTap(item),
       child: Card(
         color: backgroundColor,
@@ -247,10 +257,17 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
       return;
     }
 
+    setState(() {
+      _processingOrders.add(item.id);
+    });
+
     try {
       _webSocketService.sendUpdateOrder(widget.initialScreenId, item.id);
     } catch (e) {
       if (!mounted) return;
+      setState(() {
+        _processingOrders.remove(item.id);
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Ошибка обновления статуса: $e")),
       );
