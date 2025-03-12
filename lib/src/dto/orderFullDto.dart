@@ -12,12 +12,18 @@ class OrderFullDto {
   final String name;
   final OrderStatus status;
   final List<OrderItemDto> items;
+  final DateTime shouldBeFinishedAt;
+  final DateTime kitchenShouldGetOrderAt;
+  final DateTime kitchenGotOrderAt;
 
   OrderFullDto({
     required this.id,
     required this.name,
     required this.status,
     required this.items,
+    required this.kitchenShouldGetOrderAt,
+    required this.shouldBeFinishedAt,
+    required this.kitchenGotOrderAt,
   });
 
   /// Фабричный конструктор для парсинга из JSON в Dart-объект.
@@ -29,6 +35,9 @@ class OrderFullDto {
       items: (json['items'] as List<dynamic>)
           .map((item) => OrderItemDto.fromJson(item))
           .toList(),
+      kitchenShouldGetOrderAt: DateTime.parse(json['kitchenShouldGetOrderAt'] as String),
+      shouldBeFinishedAt: DateTime.parse(json['shouldBeFinishedAt'] as String),
+      kitchenGotOrderAt: DateTime.parse(json['kitchenGotOrderAt'] as String),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_iem_new/src/dto/orderFullDto.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:flutter_iem_new/src/service/web_socket_service.dart';
 import '../dto/orderItemDto.dart';
@@ -20,19 +21,17 @@ class ChefScreenPage extends StatefulWidget {
 
 class _ChefScreenPageState extends State<ChefScreenPage> {
   static const Color COLOR_IN_PROGRESS = Colors.lightBlue;
-  static const Color COLOR_COOKING_WARNING = Color(0xffff6969);
-  static const Color COLOR_PROCESSING =
-      Colors.grey; // Новый цвет для "в обработке"
+  static const Color COLOR_PROCESSING = Colors.grey;
 
   final WebSocketService _webSocketService = WebSocketService();
   final ScrollController _scrollController = ScrollController();
 
-  List<OrderItemDto> orders = [];
+  List<OrderFullDto> allOrders = [];
   Timer? _timer;
   Timer? _reconnectTimer;
   bool isLoading = true;
   bool _isConnected = false;
-  Set<int> _processingOrders = {}; // Для отслеживания заказов в обработке
+  Set<OrderItemDto> _processingOrders = {};
 
   @override
   void initState() {
@@ -85,12 +84,15 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
           case 'GET_ALL_ORDER_ITEMS':
             if (!mounted) return;
             setState(() {
-              orders = (payload as List<dynamic>)
-                  .map((e) => OrderItemDto.fromJson(e))
+              allOrders = (payload as List<dynamic>)
+                  .map((e) => OrderFullDto.fromJson(e))
                   .toList();
+              _processingOrders = _processingOrders.where((processingOrder) {
+                return allOrders.every((order) => order.items.every((item) =>
+                  !processingOrder.statusUpdatedAt.isBefore(item.statusUpdatedAt)
+                ));
+              }).toSet();
               isLoading = false;
-              _processingOrders
-                  .clear(); // Очищаем обработку после обновления списка
             });
             break;
           default:
@@ -120,6 +122,68 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
     }
   }
 
+  Widget _buildTimeIndicator(OrderFullDto order) {
+    final totalTime = order.shouldBeFinishedAt.difference(order.kitchenGotOrderAt).inMinutes;
+    final remainingTime = order.shouldBeFinishedAt.difference(DateTime.now()).inMinutes;
+    final elapsedTime = totalTime - remainingTime;
+
+    return Column(
+      children: [
+        SizedBox(
+          width: 40.0,
+          height: 40.0,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              CircularProgressIndicator(
+                value: (elapsedTime / totalTime).clamp(0.0, 1.0),
+                strokeWidth: 5.0,
+                backgroundColor: Colors.blue[300],
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  remainingTime > 0 ? const Color(0xFFE0E0E0) : Colors.red,
+                ),
+              ),
+              Text(
+                '$remainingTime',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: remainingTime > 0 ? Colors.black : Colors.red,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          "№ ${order.name}",
+          style: const TextStyle(fontSize: 12),
+        ),
+      ],
+    );
+  }
+
+  // Строка с таймерами заказов
+  Widget _buildTimerRow() {
+    if (allOrders.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      height: 70,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      color: Colors.grey[200],
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: allOrders.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: _buildTimeIndicator(allOrders[index]),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,54 +206,111 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _buildOrdersArea(),
-    );
-  }
-
-  Widget _buildOrdersArea() {
-    if (orders.isEmpty) {
-      return const Center(child: Text("Заказов нет"));
-    }
-
-    return Scrollbar(
-      controller: _scrollController,
-      thumbVisibility: true,
-      thickness: 10.0,
-      radius: const Radius.circular(4.0),
-      child: GridView.builder(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(8, 8, 20, 8),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: 0.95,
-        ),
-        itemCount: orders.length,
-        itemBuilder: (context, index) {
-          final item = orders[index];
-          return _buildOrderCard(item);
-        },
+          : Column(
+        children: [
+          _buildTimerRow(), // Добавляем строку с таймерами
+          Expanded(child: _buildOrdersArea()), // Основная область заказов
+        ],
       ),
     );
   }
 
+  Widget _buildOrdersArea() {
+    final List<OrderItemDto> orderItems = allOrders
+        .expand((order) => order.items)
+        .toList();
+
+    if (allOrders.isEmpty || orderItems.isEmpty) {
+      return const Center(child: Text("Заказов нет"));
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Область сетки
+        Expanded(
+          child: GridView.builder(
+            controller: _scrollController,
+            physics: const ClampingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 0.95,
+            ),
+            itemCount: orderItems.length,
+            itemBuilder: (context, index) {
+              final item = orderItems[index];
+              return _buildOrderCard(item);
+            },
+          ),
+        ),
+        // Кнопки справа
+        SizedBox(
+          width: 60, // Фиксированная ширина для кнопок
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Кнопка "Вверх"
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: FloatingActionButton(
+                  mini: true, // Уменьшенный размер кнопки
+                  onPressed: () {
+                    if (_scrollController.hasClients && _scrollController.offset > 0) {
+                      _scrollController.animateTo(
+                        _scrollController.offset - 200,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    }
+                  },
+                  tooltip: 'Прокрутить вверх',
+                  child: const Icon(Icons.arrow_upward),
+                ),
+              ),
+              // Кнопка "Вниз"
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: FloatingActionButton(
+                  mini: true, // Уменьшенный размер кнопки
+                  onPressed: () {
+                    if (_scrollController.hasClients &&
+                        _scrollController.offset < _scrollController.position.maxScrollExtent) {
+                      _scrollController.animateTo(
+                        _scrollController.offset + 200,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    }
+                  },
+                  tooltip: 'Прокрутить вниз',
+                  child: const Icon(Icons.arrow_downward),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildOrderCard(OrderItemDto item) {
-    final elapsedSeconds = DateTime.now().difference(item.createdAt).inSeconds;
-    final isProcessing = _processingOrders.contains(item.id);
+    final elapsedSeconds = DateTime.now().difference(item.statusUpdatedAt).inSeconds;
+    final isProcessing = _processingOrders.contains(item);
 
     Color backgroundColor = Colors.white;
     String timeLabel;
 
     if (isProcessing) {
-      backgroundColor = COLOR_PROCESSING; // Серый цвет при обработке
-      timeLabel = "Обработка...";
+      backgroundColor = COLOR_PROCESSING;
+      timeLabel = "Загрузка...";
     } else if (item.status == OrderItemStationStatus.STARTED) {
-      backgroundColor = COLOR_IN_PROGRESS; // Синий цвет после ответа сервера
+      backgroundColor = COLOR_IN_PROGRESS;
       timeLabel = "Готовка: $elapsedSeconds сек";
       if (elapsedSeconds > item.timeToCook) {
-        backgroundColor = COLOR_COOKING_WARNING;
+        backgroundColor = COLOR_IN_PROGRESS; //COLOR_COOKING_WARNING;
       }
     } else {
       timeLabel = "Ожидание: $elapsedSeconds сек";
@@ -208,7 +329,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "#${item.orderName}: ${item.name}",
+                    "№${item.orderName}: ${item.name}",
                     style: TextStyle(
                       fontSize: constraints.maxWidth * 0.08,
                       fontWeight: FontWeight.bold,
@@ -258,7 +379,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
     }
 
     setState(() {
-      _processingOrders.add(item.id);
+      _processingOrders.add(item);
     });
 
     try {
@@ -266,7 +387,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _processingOrders.remove(item.id);
+        _processingOrders.remove(item);
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Ошибка обновления статуса: $e")),

@@ -156,6 +156,8 @@ Widget? _buildOrderColumn(OrderFullDto orderDto) {
         !item.extra;
   }).toList();
 
+  final remainingTime = orderDto.shouldBeFinishedAt.difference(DateTime.now()).inMinutes;
+
   if (filteredItems.isEmpty) {
     return null;
   }
@@ -189,6 +191,10 @@ Widget? _buildOrderColumn(OrderFullDto orderDto) {
               Text(
                 'Заказ #${orderDto.name}',
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                remainingTime > 0 ? 'Осталось $remainingTime мин' : "Опаздываем на $remainingTime мин",
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.normal),
               ),
               const SizedBox(height: 8),
               // Показываем кнопку только если ВСЕ позиции НЕ на станции 4
@@ -252,13 +258,22 @@ Widget? _buildOrderColumn(OrderFullDto orderDto) {
   Widget _buildItemTile(OrderItemDto item) {
     //TODO Добавить ENUM
     final canTap = (item.currentStation.id == 4);
-    final elapsedSeconds = DateTime.now().difference(item.createdAt).inSeconds;
+    final elapsedSeconds = DateTime.now().difference(item.statusUpdatedAt).inSeconds;
     final tileColor = (item.status == OrderItemStationStatus.STARTED &&
             item.currentStation.id == 4)
         ? Colors.yellow.shade100
         : canTap
             ? const Color.fromARGB(255, 0, 255, 64)
             : Colors.grey.shade200;
+
+    String status = "";
+    if (item.status == OrderItemStationStatus.COOCKING) {
+      status = "Готовится";
+    } else if (item.status == OrderItemStationStatus.STARTED) {
+      status = "Собран";
+    } else if (item.status == OrderItemStationStatus.ADDED) {
+      status = "Ожидает";
+    }
 
     return GestureDetector(
       onTap: canTap
@@ -313,7 +328,7 @@ Widget? _buildOrderColumn(OrderFullDto orderDto) {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             Text('Станция: ${item.currentStation.name}'),
-            Text('На этой станции: $elapsedSeconds сек'),
+            Text('$status: $elapsedSeconds сек назад'),
             if (!canTap)
               const Text(
                 'Еще не готов к сборке',
