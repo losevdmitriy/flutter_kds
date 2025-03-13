@@ -48,6 +48,8 @@ class MyApp extends StatelessWidget {
           return MaterialPageRoute(builder: (context) => WarehouseScreen());
         } else if (settings.name == '/print') {
           // return MaterialPageRoute(builder: (context) => FlutterBlueApp());
+        } else if (settings.name == '/writeOff') {
+          return MaterialPageRoute(builder: (context) => WriteOffScreen());
         }
         // Неизвестный маршрут
         return MaterialPageRoute(
