@@ -16,9 +16,9 @@ class _WriteOffScreenState extends State<WriteOffScreen> {
   int _currentPage = 0;
   int _elementsPerPage = 10;
 
-  // Добавляем переменные состояния для сортировки
-  bool _isAscending = true; // Флаг для отслеживания порядка сортировки
-  int _sortColumnIndex = 0; // Индекс текущей сортируемой колонки
+  // Переменные состояния для сортировки
+  bool _isAscending = true;
+  int _sortColumnIndex = 0;
 
   @override
   void initState() {
@@ -86,44 +86,101 @@ class _WriteOffScreenState extends State<WriteOffScreen> {
             _buildPaginationControls(items),
             Expanded(
               child: SingleChildScrollView(
-                child: DataTable(
-                  sortColumnIndex: _sortColumnIndex,
-                  sortAscending: _isAscending,
-                  columns: [
-                    DataColumn(
-                      label: const Text('ID'),
-                      onSort: (columnIndex, ascending) {
-                        setState(() {
-                          _sortColumnIndex = columnIndex;
-                          _isAscending = ascending;
-                        });
-                      },
-                    ),
-                    const DataColumn(label: Text('Тип')),
-                    const DataColumn(label: Text('Имя')),
-                    const DataColumn(label: Text('Id на складе')),
-                    const DataColumn(label: Text('Колл-во')),
-                    const DataColumn(label: Text('Комментарий')),
-                    const DataColumn(label: Text('Дата создания')),
-                    const DataColumn(label: Text('Cписал')),
-                    const DataColumn(label: Text('Успешно?')),
-                  ],
-                  rows: items.map((writeOff) {
-                    return DataRow(
-                      cells: [
-                        DataCell(Text(writeOff.id?.toString() ?? '')),
-                        DataCell(Text(writeOff.sourceType ?? '')),
-                        DataCell(Text(writeOff.name ?? '')),
-                        DataCell(Text(writeOff.sourceId?.toString() ?? '')),
-                        DataCell(
-                            Text(writeOff.amount?.toStringAsFixed(2) ?? '0')),
-                        DataCell(Text(writeOff.discontinuedComment ?? '')),
-                        DataCell(Text(formatDateTime(writeOff.createdAt))),
-                        DataCell(Text(writeOff.createdBy ?? '')),
-                        DataCell(Text(writeOff.isCompleted?.toString() ?? '')),
+                scrollDirection: Axis.vertical,
+                child: Container(
+                  width: MediaQuery.of(context)
+                      .size
+                      .width, // Занимаем всю ширину экрана
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      columnSpacing:
+                          16.0, // Минимизируем расстояние между столбцами
+                      dataRowMaxHeight:
+                          double.infinity, // Растягиваем строки на всю ширину
+                      sortColumnIndex: _sortColumnIndex,
+                      sortAscending: _isAscending,
+                      columns: [
+                        DataColumn(
+                          label: const Text('ID'),
+                          onSort: (columnIndex, ascending) {
+                            setState(() {
+                              _sortColumnIndex = columnIndex;
+                              _isAscending = ascending;
+                            });
+                          },
+                        ),
+                        const DataColumn(label: Text('Тип')),
+                        const DataColumn(label: Text('Имя')),
+                        const DataColumn(label: Text('Id на складе')),
+                        const DataColumn(label: Text('Колл-во')),
+                        const DataColumn(label: Text('Комментарий')),
+                        const DataColumn(label: Text('Дата создания')),
+                        const DataColumn(label: Text('Cписал')),
+                        const DataColumn(label: Text('Успешно?')),
                       ],
-                    );
-                  }).toList(),
+                      rows: items.map((writeOff) {
+                        return DataRow(
+                          cells: [
+                            DataCell(
+                              Text(
+                                writeOff.id?.toString() ?? '',
+                                softWrap: true,
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                writeOff.sourceType ?? '',
+                                softWrap: true,
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                writeOff.name ?? '',
+                                softWrap: true,
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                writeOff.sourceId?.toString() ?? '',
+                                softWrap: true,
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                writeOff.amount?.toStringAsFixed(2) ?? '0',
+                                softWrap: true,
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                writeOff.discontinuedComment ?? '',
+                                softWrap: true,
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                formatDateTime(writeOff.createdAt),
+                                softWrap: true,
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                writeOff.createdBy ?? '',
+                                softWrap: true,
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                writeOff.isCompleted?.toString() ?? '',
+                                softWrap: true,
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -172,7 +229,7 @@ class _WriteOffScreenState extends State<WriteOffScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _reloadData, // Кнопка для обновления данных
+            onPressed: _reloadData,
           ),
         ],
       ),
