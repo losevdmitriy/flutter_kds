@@ -1,5 +1,5 @@
 class WriteOffRequest {
-  final int sourceItemId;
+  final int id;
   final String employeeName;
   final String sourceType; // <-- Тут указываем INREDIENT / PREPACK
   final double writeOffAmount;
@@ -7,7 +7,7 @@ class WriteOffRequest {
   final String? customReasonComment;
 
   WriteOffRequest({
-    required this.sourceItemId,
+    required this.id,
     required this.employeeName,
     required this.writeOffAmount,
     required this.discontinuedReason,
@@ -17,7 +17,7 @@ class WriteOffRequest {
 
   Map<String, dynamic> toJson() {
     return {
-      'sourceItemId': sourceItemId,
+      'id': id,
       'employeeName': employeeName,
       'writeOffAmount': writeOffAmount,
       'discontinuedReason':

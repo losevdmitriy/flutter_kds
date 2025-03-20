@@ -471,7 +471,7 @@ class _WriteOffDialogState extends State<WriteOffDialog> {
 
     final apiService = ApiService();
     final request = WriteOffRequest(
-      sourceItemId: widget.itemId,
+      id: widget.itemId,
       employeeName: _employeeNameController.text.trim(),
       writeOffAmount: double.parse(_amountController.text),
       discontinuedReason: _selectedReason,

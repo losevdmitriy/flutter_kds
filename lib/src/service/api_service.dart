@@ -82,6 +82,19 @@ class ApiService {
     }
   }
 
+  /// Метод для создания списания товара
+  Future<void> addWriteOffItem(WriteOffRequest request) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/warehouse/add-write-off');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(request.toJson()),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Ошибка при списании: ${response.body}');
+    }
+  }
+
   /// Получение всех источников (ингредиенты, ПФ)
   Future<List<Source>> fetchSources() async {
     final response = await http.get(
@@ -109,6 +122,22 @@ class ApiService {
       return data.map((json) => Source.fromJson(json)).toList();
     } else {
       throw Exception('Ошибка при получении списка заготовок (Prepacks)');
+    }
+  }
+
+  Future<List<Source>> fetchIngredients() async {
+    debugPrint('Запрос Ingredients');
+
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/sources/ingredients'),
+    );
+
+    debugPrint('Ответ Ingredients');
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((json) => Source.fromJson(json)).toList();
+    } else {
+      throw Exception('Ошибка при получении списка ингредиентов (Ingredients)');
     }
   }
 

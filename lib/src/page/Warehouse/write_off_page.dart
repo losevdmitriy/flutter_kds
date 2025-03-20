@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_iem_new/src/utils/parseDateTime.dart';
 import '../../dto/writeOffItemData.dart';
 import '../../service/api_service.dart';
+import 'new_write_off_dialog.dart'; // Импорт диалога для списания
 
 class WriteOffScreen extends StatefulWidget {
   const WriteOffScreen({super.key});
@@ -87,7 +88,7 @@ class _WriteOffScreenState extends State<WriteOffScreen> {
             Expanded(
               child: SingleChildScrollView(
                 scrollDirection: Axis.vertical,
-                child: Container(
+                child: SizedBox(
                   width: MediaQuery.of(context)
                       .size
                       .width, // Занимаем всю ширину экрана
@@ -122,60 +123,25 @@ class _WriteOffScreenState extends State<WriteOffScreen> {
                       rows: items.map((writeOff) {
                         return DataRow(
                           cells: [
-                            DataCell(
-                              Text(
-                                writeOff.id?.toString() ?? '',
-                                softWrap: true,
-                              ),
-                            ),
-                            DataCell(
-                              Text(
-                                writeOff.sourceType ?? '',
-                                softWrap: true,
-                              ),
-                            ),
-                            DataCell(
-                              Text(
-                                writeOff.name ?? '',
-                                softWrap: true,
-                              ),
-                            ),
-                            DataCell(
-                              Text(
-                                writeOff.sourceId?.toString() ?? '',
-                                softWrap: true,
-                              ),
-                            ),
-                            DataCell(
-                              Text(
+                            DataCell(Text(writeOff.id?.toString() ?? '',
+                                softWrap: true)),
+                            DataCell(Text(writeOff.sourceType ?? '',
+                                softWrap: true)),
+                            DataCell(Text(writeOff.name ?? '', softWrap: true)),
+                            DataCell(Text(writeOff.sourceId?.toString() ?? '',
+                                softWrap: true)),
+                            DataCell(Text(
                                 writeOff.amount?.toStringAsFixed(2) ?? '0',
-                                softWrap: true,
-                              ),
-                            ),
+                                softWrap: true)),
+                            DataCell(Text(writeOff.discontinuedComment ?? '',
+                                softWrap: true)),
+                            DataCell(Text(formatDateTime(writeOff.createdAt),
+                                softWrap: true)),
                             DataCell(
-                              Text(
-                                writeOff.discontinuedComment ?? '',
-                                softWrap: true,
-                              ),
-                            ),
-                            DataCell(
-                              Text(
-                                formatDateTime(writeOff.createdAt),
-                                softWrap: true,
-                              ),
-                            ),
-                            DataCell(
-                              Text(
-                                writeOff.createdBy ?? '',
-                                softWrap: true,
-                              ),
-                            ),
-                            DataCell(
-                              Text(
+                                Text(writeOff.createdBy ?? '', softWrap: true)),
+                            DataCell(Text(
                                 writeOff.isCompleted?.toString() ?? '',
-                                softWrap: true,
-                              ),
-                            ),
+                                softWrap: true)),
                           ],
                         );
                       }).toList(),
@@ -234,6 +200,19 @@ class _WriteOffScreenState extends State<WriteOffScreen> {
         ],
       ),
       body: _buildWriteOffItemsTab(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final result = await showDialog<bool>(
+            context: context,
+            builder: (_) => const NewWriteOffDialog(),
+          );
+          if (result == true) {
+            await _reloadData(); // Обновляем данные после успешного списания
+          }
+        },
+        child: const Icon(Icons.add),
+        tooltip: 'Добавить списание',
+      ),
     );
   }
 }
