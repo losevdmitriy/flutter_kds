@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_iem_new/src/config/api_config.dart';
+import 'package:flutter_iem_new/src/config/city_config.dart';
 import 'package:regexed_validator/regexed_validator.dart';
 
 class IpInputDialog extends StatefulWidget {
@@ -18,6 +19,7 @@ class _IpInputDialogState extends State<IpInputDialog> {
 
   String? _ipErrorText;
   String? _portErrorText;
+  String? _selectedCity;
 
   /// Проверяет, является ли строка корректным IP-адресом (IPv4 или IPv6).
   bool _isValidIp(String ip) {
@@ -28,6 +30,22 @@ class _IpInputDialogState extends State<IpInputDialog> {
   bool _isValidPort(String port) {
     final portNumber = int.tryParse(port);
     return portNumber != null && portNumber >= 1 && portNumber <= 65535;
+  }
+
+  /// Обрабатывает выбор города и автоматически заполняет IP и порт
+  void _onCitySelected(String? city) {
+    setState(() {
+      _selectedCity = city;
+      if (city != null) {
+        final config = CityConfig.getCityConfig(city);
+        _ipController.text = config['ip'] as String;
+        _portController.text = config['port'].toString();
+        
+        // Очищаем ошибки при автоматическом заполнении
+        _ipErrorText = null;
+        _portErrorText = null;
+      }
+    });
   }
 
   void _validateAndSubmit() {
@@ -44,8 +62,14 @@ class _IpInputDialogState extends State<IpInputDialog> {
     });
 
     if (_ipErrorText == null && _portErrorText == null) {
-      ApiConfig.ip = ip;
-      ApiConfig.port = int.parse(port);
+      // Если выбран город, используем его конфигурацию
+      if (_selectedCity != null) {
+        ApiConfig.setCityConfig(_selectedCity!);
+      } else {
+        // Иначе устанавливаем вручную введенные значения
+        ApiConfig.ip = ip;
+        ApiConfig.port = int.parse(port);
+      }
       String fullAddress = "$ip:$port";
       widget.onIpEntered(fullAddress);
       Navigator.of(context).pop();
@@ -55,10 +79,41 @@ class _IpInputDialogState extends State<IpInputDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text("Введите IP-адрес и порт"),
+      title: const Text("Настройка подключения"),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Выбор города
+          DropdownButtonFormField<String>(
+            value: _selectedCity,
+            decoration: const InputDecoration(
+              labelText: "Выберите город",
+              border: OutlineInputBorder(),
+            ),
+            items: CityConfig.availableCities.map((String city) {
+              return DropdownMenuItem<String>(
+                value: city,
+                child: Text(city),
+              );
+            }).toList(),
+            onChanged: _onCitySelected,
+          ),
+          const SizedBox(height: 16),
+          
+          // Разделитель
+          Row(
+            children: [
+              Expanded(child: Divider()),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text("или", style: TextStyle(color: Colors.grey[600])),
+              ),
+              Expanded(child: Divider()),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Ручной ввод IP
           TextField(
             controller: _ipController,
             keyboardType: const TextInputType.numberWithOptions(
@@ -71,6 +126,7 @@ class _IpInputDialogState extends State<IpInputDialog> {
               labelText: "IP-адрес",
               hintText: ApiConfig.ip,
               errorText: _ipErrorText,
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 10),
@@ -84,6 +140,7 @@ class _IpInputDialogState extends State<IpInputDialog> {
               labelText: "Порт",
               hintText: ApiConfig.port.toString(),
               errorText: _portErrorText,
+              border: const OutlineInputBorder(),
             ),
           ),
         ],

@@ -4,6 +4,7 @@ import 'package:flutter_iem_new/src/dto/orderFullDto.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:flutter_iem_new/src/service/web_socket_service.dart';
 import '../dto/orderItemDto.dart';
+import 'collector_screen_page.dart';
 
 class ChefScreenPage extends StatefulWidget {
   final String initialScreenId;
@@ -87,10 +88,37 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
               allOrders = (payload as List<dynamic>)
                   .map((e) => OrderFullDto.fromJson(e))
                   .toList();
+              // Обновляем _processingOrders: удаляем элементы, которые обновились или исчезли
               _processingOrders = _processingOrders.where((processingOrder) {
-                return allOrders.every((order) => order.items.every((item) =>
-                  !processingOrder.statusUpdatedAt.isBefore(item.statusUpdatedAt)
-                ));
+                // Ищем соответствующий элемент в новых данных
+                OrderItemDto? currentItem;
+                for (var order in allOrders) {
+                  for (var item in order.items) {
+                    if (item.id == processingOrder.id) {
+                      currentItem = item;
+                      break;
+                    }
+                  }
+                  if (currentItem != null) break;
+                }
+                
+                // Для COMPLETED items: если элемент не найден в новых данных - удаляем из processing
+                if (processingOrder.status == OrderItemStationStatus.COMPLETED) {
+                  return currentItem != null;
+                }
+                
+                // Для остальных: если элемент не найден в новых данных - удаляем из processing
+                if (currentItem == null) {
+                  return false;
+                }
+                
+                // Если статус совпадает с тем что пришло с сервера - удаляем из processing
+                if (currentItem.status == processingOrder.status) {
+                  return false;
+                }
+                
+                // Иначе оставляем в processing
+                return true;
               }).toSet();
               isLoading = false;
             });
@@ -123,7 +151,8 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
   }
 
   Widget _buildTimeIndicator(OrderFullDto order) {
-    final totalTime = order.shouldBeFinishedAt.difference(order.kitchenGotOrderAt).inMinutes;
+    final kitchenGotOrderAt = order.kitchenGotOrderAt ?? order.kitchenShouldGetOrderAt;
+    final totalTime = order.shouldBeFinishedAt.difference(kitchenGotOrderAt).inMinutes;
     final remainingTime = order.shouldBeFinishedAt.difference(DateTime.now()).inMinutes;
     final elapsedTime = totalTime - remainingTime;
 
@@ -190,12 +219,27 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
       appBar: AppBar(
         title: Text(widget.name),
         actions: [
-          IconButton(
-            icon: Icon(
-              _isConnected ? Icons.wifi : Icons.wifi_off,
-              color: _isConnected ? Colors.green : Colors.red,
+          TextButton.icon(
+            icon: const Icon(Icons.list),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CollectorScreenPage(
+                    initialScreenId: '4', // ID станции коллектора
+                    fromChefScreen: true,
+                  ),
+                ),
+              );
+            },
+            label: const Text('Все заказы'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.black,
             ),
-            onPressed: _refreshOrders,
+          ),
+          Icon(
+            _isConnected ? Icons.wifi : Icons.wifi_off,
+            color: _isConnected ? Colors.green : Colors.red,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -219,8 +263,28 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
     final List<OrderItemDto> orderItems = allOrders
         .expand((order) => order.items)
         .toList();
+    
+    // Добавляем processing items с обновленными статусами
+    final List<OrderItemDto> processingItemsToShow = _processingOrders
+        .where((item) => item.status != OrderItemStationStatus.COMPLETED) // Не показываем COMPLETED
+        .toList();
+    
+    // Объединяем списки, исключая дубликаты
+    final Map<int, OrderItemDto> allItemsMap = {};
+    
+    // Сначала добавляем обычные items
+    for (var item in orderItems) {
+      allItemsMap[item.id] = item;
+    }
+    
+    // Затем перезаписываем processing items (они имеют приоритет)
+    for (var item in processingItemsToShow) {
+      allItemsMap[item.id] = item;
+    }
+    
+    final List<OrderItemDto> finalOrderItems = allItemsMap.values.toList();
 
-    if (allOrders.isEmpty || orderItems.isEmpty) {
+    if (allOrders.isEmpty || finalOrderItems.isEmpty) {
       return const Center(child: Text("Заказов нет"));
     }
 
@@ -239,9 +303,9 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
               mainAxisSpacing: 8,
               childAspectRatio: 0.95,
             ),
-            itemCount: orderItems.length,
+            itemCount: finalOrderItems.length,
             itemBuilder: (context, index) {
-              final item = orderItems[index];
+              final item = finalOrderItems[index];
               return _buildOrderCard(item);
             },
           ),
@@ -298,29 +362,36 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
 
   Widget _buildOrderCard(OrderItemDto item) {
     final elapsedSeconds = DateTime.now().difference(item.statusUpdatedAt).inSeconds;
-    final isProcessing = _processingOrders.contains(item);
+    final isProcessing = _processingOrders.any((p) => p.id == item.id);
 
+    Color borderColor = Colors.grey.shade300;
     Color backgroundColor = Colors.white;
     String timeLabel;
 
-    if (isProcessing) {
-      backgroundColor = COLOR_PROCESSING;
-      timeLabel = "Загрузка...";
-    } else if (item.status == OrderItemStationStatus.STARTED) {
-      backgroundColor = COLOR_IN_PROGRESS;
+    if (item.status == OrderItemStationStatus.STARTED) {
+      borderColor = COLOR_IN_PROGRESS;
+      backgroundColor = COLOR_IN_PROGRESS.withOpacity(0.1); // Легкий голубой фон
       timeLabel = "Готовка: $elapsedSeconds сек";
       if (elapsedSeconds > item.timeToCook) {
-        backgroundColor = COLOR_IN_PROGRESS; //COLOR_COOKING_WARNING;
+        borderColor = COLOR_IN_PROGRESS; //COLOR_COOKING_WARNING;
+        backgroundColor = COLOR_IN_PROGRESS.withOpacity(0.15); // Чуть более насыщенный фон при превышении времени
       }
     } else {
       timeLabel = "Ожидание: $elapsedSeconds сек";
     }
 
     return InkWell(
-      onTap: () => _onOrderTap(item),
+      onTap: isProcessing ? null : () => _onOrderTap(item), // Блокируем нажатие если в обработке
       child: Card(
         color: backgroundColor,
         elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8.0),
+          side: BorderSide(
+            color: borderColor,
+            width: 3.0,
+          ),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: LayoutBuilder(
@@ -370,6 +441,11 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
   }
 
   Future<void> _onOrderTap(OrderItemDto item) async {
+    // Проверяем, не находится ли уже в обработке
+    if (_processingOrders.any((p) => p.id == item.id)) {
+      return; // Игнорируем повторные нажатия
+    }
+    
     if (!_isConnected) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -378,8 +454,42 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
       return;
     }
 
+    // Определяем следующий статус
+    OrderItemStationStatus nextStatus;
+    if (item.status == OrderItemStationStatus.ADDED) {
+      nextStatus = OrderItemStationStatus.STARTED;
+    } else if (item.status == OrderItemStationStatus.STARTED) {
+      nextStatus = OrderItemStationStatus.COMPLETED;
+    } else {
+      return; // Для других статусов ничего не делаем
+    }
+
+    // Создаем копию item с новым статусом
+    final processingItem = OrderItemDto(
+      id: item.id,
+      orderId: item.orderId,
+      orderName: item.orderName,
+      name: item.name,
+      ingredients: item.ingredients,
+      statusUpdatedAt: item.statusUpdatedAt, // Оставляем старый timestamp
+      status: nextStatus, // Новый статус
+      currentStation: item.currentStation,
+      flowStepType: item.flowStepType,
+      timeToCook: item.timeToCook,
+      extra: item.extra,
+    );
+
     setState(() {
-      _processingOrders.add(item);
+      _processingOrders.add(processingItem);
+    });
+
+    // Автоматическая разблокировка через 2 секунды
+    Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _processingOrders.removeWhere((p) => p.id == item.id);
+        });
+      }
     });
 
     try {
@@ -387,7 +497,7 @@ class _ChefScreenPageState extends State<ChefScreenPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _processingOrders.remove(item);
+        _processingOrders.removeWhere((p) => p.id == item.id);
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Ошибка обновления статуса: $e")),

@@ -121,12 +121,14 @@ class WebSocketService {
     _stompClient!.send(destination: destination, body: '');
   }
 
-  void sendGetAllOrdersWithItems() {
+  void sendGetAllOrdersWithItems([String? screenId]) {
     if (!_canSend()) {
       print('[sendGetAllOrdersWithItems] Not connected -> skip');
       return;
     }
-    final destination = '/app/topic/screen.getAllOrdersWithItems';
+    final destination = screenId != null 
+        ? '/app/topic/screen.getAllOrdersWithItems/$screenId'
+        : '/app/topic/screen.getAllOrdersWithItems';
     _stompClient!.send(destination: destination, body: '');
   }
 

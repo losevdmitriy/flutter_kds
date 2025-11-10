@@ -1,14 +1,21 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter_iem_new/src/service/web_socket_service.dart';
+import 'package:flutter_iem_new/src/config/api_config.dart';
 import '../dto/orderFullDto.dart';
 import '../dto/orderItemDto.dart';
 
 class CollectorScreenPage extends StatefulWidget {
   final String initialScreenId;
+  final bool fromChefScreen;
 
-  const CollectorScreenPage({Key? key, required this.initialScreenId})
-      : super(key: key);
+  const CollectorScreenPage({
+    Key? key,
+    required this.initialScreenId,
+    this.fromChefScreen = false,
+  }) : super(key: key);
 
   @override
   State<CollectorScreenPage> createState() => _CollectorScreenPageState();
@@ -18,7 +25,8 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
   final WebSocketService webSocketService = WebSocketService();
 
   List<OrderFullDto> allOrders = [];
-  final Map<int, bool> itemClickedState = {};
+  List<OrderFullDto> historyOrders = [];
+  bool _showHistory = false;
 
   Timer? _timer;
   Timer? _reconnectTimer;
@@ -65,12 +73,12 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
               SnackBar(content: Text(payload.toString())),
             );
             if (_isConnected) {
-              webSocketService.sendGetAllOrdersWithItems();
+              webSocketService.sendGetAllOrdersWithItems(screenId);
             }
             break;
           case 'REFRESH':
             if (_isConnected) {
-              webSocketService.sendGetAllOrdersWithItems();
+              webSocketService.sendGetAllOrdersWithItems(screenId);
             }
             break;
           case 'GET_ALL_ORDERS':
@@ -89,7 +97,7 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
         setState(() {
           _isConnected = true;
         });
-        webSocketService.sendGetAllOrdersWithItems();
+        webSocketService.sendGetAllOrdersWithItems(screenId);
       },
       onDisconnect: () {
         if (!mounted) return;
@@ -109,8 +117,30 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: !widget.fromChefScreen,
+        leading: widget.fromChefScreen
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
         title: const Text('Collector Screen'),
         actions: [
+          TextButton.icon(
+            icon: Icon(_showHistory ? Icons.list : Icons.history),
+            onPressed: () {
+              setState(() {
+                _showHistory = !_showHistory;
+                if (_showHistory && historyOrders.isEmpty) {
+                  _loadHistoryOrders();
+                }
+              });
+            },
+            label: Text(_showHistory ? 'Вернуться ко всем заказам' : 'Открыть историю заказов'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.black,
+            ),
+          ),
           Icon(
             _isConnected ? Icons.wifi : Icons.wifi_off,
             color: _isConnected ? Colors.green : Colors.red,
@@ -127,9 +157,11 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
   }
 
   Widget _buildBody() {
-    if (allOrders.isEmpty) {
+    final ordersToShow = _showHistory ? historyOrders : allOrders;
+    
+    if (ordersToShow.isEmpty) {
       return const Center(
-        child: Text('Нет заказов в системе'),
+        child: Text('Нет заказов'),
       );
     }
 
@@ -139,8 +171,8 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
       padding: const EdgeInsets.all(10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: allOrders
-            .map((orderDto) => _buildOrderColumn(orderDto))
+        children: ordersToShow
+            .map((orderDto) => _buildOrderColumn(orderDto, isHistory: _showHistory))
             .where((col) => col != null)
             .cast<Widget>()
             .toList(),
@@ -148,22 +180,32 @@ class _CollectorScreenPageState extends State<CollectorScreenPage> {
     );
   }
 
-Widget? _buildOrderColumn(OrderFullDto orderDto) {
+Widget? _buildOrderColumn(OrderFullDto orderDto, {bool isHistory = false}) {
+  // Для истории показываем все блюда (кроме допов)
   final filteredItems = orderDto.items.where((item) {
+    if (isHistory) {
+      return !item.extra; // Показываем только основные блюда, без допов
+    }
     return item.status != OrderItemStationStatus.CANCELED &&
-        item.status != OrderItemStationStatus.COMPLETED &&
-        item.flowStepType != 'FINAL_STEP' &&
         !item.extra;
   }).toList();
 
+  // Для истории не показываем время, для активных - оставшееся время
+  final String timeInfo;
+  if (isHistory) {
+    timeInfo = ""; // Для истории не показываем время
+  } else {
   final remainingTime = orderDto.shouldBeFinishedAt.difference(DateTime.now()).inMinutes;
+    timeInfo = remainingTime > 0 ? 'Осталось $remainingTime мин' : "Опаздываем на $remainingTime мин";
+  }
 
   if (filteredItems.isEmpty) {
     return null;
   }
 
-  // Проверяем, находятся ли ВСЕ позиции НЕ на станции 4
-  bool allItemsNotAtStation4 = orderDto.items.every((item) => item.currentStation.id == 4);
+  // Проверяем, находятся ли ВСЕ позиции на станции 4
+  bool allItemsAtStation4 = filteredItems.isNotEmpty && 
+      filteredItems.every((item) => item.currentStation.id == 4);
 
   // Фильтруем позиции, у которых extra == true
   final extraItems = orderDto.items.where((item) => item.extra).toList();
@@ -189,31 +231,35 @@ Widget? _buildOrderColumn(OrderFullDto orderDto) {
           child: Column(
             children: [
               Text(
-                'Заказ #${orderDto.name}',
+                'Заказ #${orderDto.name} [${filteredItems.length}]',
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
+              if (timeInfo.isNotEmpty)
               Text(
-                remainingTime > 0 ? 'Осталось $remainingTime мин' : "Опаздываем на $remainingTime мин",
+                  timeInfo,
                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.normal),
               ),
               const SizedBox(height: 8),
-              // Показываем кнопку только если ВСЕ позиции НЕ на станции 4
-              if (allItemsNotAtStation4)
+              // Показываем кнопку только если ВСЕ позиции на станции 4 (для активных) или для истории
+              if (isHistory || allItemsAtStation4)
                 ElevatedButton(
-                  onPressed: () async {
+                  onPressed: () {
                     if (!_isConnected) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Нет соединения с сервером')),
                       );
                       return;
                     }
+                    if (isHistory) {
+                      _showReturnItemsDialog(orderDto);
+                    } else {
                     webSocketService.sendUpdateAllOrderToDone(
                       widget.initialScreenId,
                       orderDto.id,
                     );
-                    await _refreshPage();
+                    }
                   },
-                  child: Text('Заказ собран'),
+                  child: Text(isHistory ? 'Вернуть' : 'Заказ собран'),
                 ),
               // Вывод списка extra-позиций, если они есть
               if (extraCounts.isNotEmpty)
@@ -257,27 +303,35 @@ Widget? _buildOrderColumn(OrderFullDto orderDto) {
 
   Widget _buildItemTile(OrderItemDto item) {
     //TODO Добавить ENUM
-    final canTap = (item.currentStation.id == 4);
+    final canTap = (item.currentStation.id == 4) && (item.status == OrderItemStationStatus.ADDED);
     final elapsedSeconds = DateTime.now().difference(item.statusUpdatedAt).inSeconds;
-    final tileColor = (item.status == OrderItemStationStatus.STARTED &&
-            item.currentStation.id == 4)
-        ? Colors.yellow.shade100
-        : canTap
-            ? const Color.fromARGB(255, 0, 255, 64)
-            : Colors.grey.shade200;
+    
+    // Определяем цвет тайла: желтый для STARTED, зеленый для добавленных, серый для остальных
+    Color tileColor;
+    if (item.status != OrderItemStationStatus.ADDED && item.currentStation.id == 4) {
+      tileColor = Colors.yellow.shade100;
+    } else if (canTap && item.status == OrderItemStationStatus.ADDED) {
+      tileColor = const Color.fromARGB(255, 0, 255, 64);
+    } else {
+      tileColor = Colors.grey.shade200;
+    }
 
     String status = "";
     if (item.status == OrderItemStationStatus.COOCKING) {
       status = "Готовится";
     } else if (item.status == OrderItemStationStatus.STARTED) {
-      status = "Собран";
+      status = "В работе";
     } else if (item.status == OrderItemStationStatus.ADDED) {
       status = "Ожидает";
+    } else if (item.status == OrderItemStationStatus.COMPLETED) {
+      status = "Завершен";
+    } else if (item.status == OrderItemStationStatus.CANCELED) {
+      status = "Отменен";
     }
 
     return GestureDetector(
       onTap: canTap
-          ? () async {
+          ? () {
               if (!_isConnected) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -286,29 +340,59 @@ Widget? _buildOrderColumn(OrderFullDto orderDto) {
                 );
                 return;
               }
-              // "двойной клик"
-              final currentlyClicked = itemClickedState[item.id] ?? false;
-              if (!currentlyClicked) {
+              
+              // Локально обновляем статус элемента в списке
                 setState(() {
-                  itemClickedState[item.id] = true;
-                });
+                final ordersToUpdate = _showHistory ? historyOrders : allOrders;
+                for (var order in ordersToUpdate) {
+                  for (var orderItem in order.items) {
+                    if (orderItem.id == item.id && orderItem.status == OrderItemStationStatus.ADDED) {
+                      // Создаем новый OrderItemDto с обновленным статусом
+                      final updatedOrderItem = OrderItemDto(
+                        id: orderItem.id,
+                        orderId: orderItem.orderId,
+                        orderName: orderItem.orderName,
+                        name: orderItem.name,
+                        ingredients: orderItem.ingredients,
+                        statusUpdatedAt: DateTime.now(),
+                        status: OrderItemStationStatus.STARTED,
+                        currentStation: orderItem.currentStation,
+                        flowStepType: orderItem.flowStepType,
+                        timeToCook: orderItem.timeToCook,
+                        extra: orderItem.extra,
+                      );
+                      
+                      // Обновляем список элементов заказа
+                      final index = order.items.indexOf(orderItem);
+                      if (index != -1) {
+                        order.items[index] = updatedOrderItem;
+                      }
+                      break;
+                    }
+                  }
+                }
+              });
+              
+              // Отправляем обновление статуса позиции на сервер
                 webSocketService.sendUpdateOrder(
                   widget.initialScreenId,
                   item.id,
                 );
-              } else {
-                webSocketService.sendUpdateOrder(
-                  widget.initialScreenId,
-                  item.id,
-                );
+              
+              // Показываем уведомление
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Позиция собрана: ${item.name}')),
-                );
-                setState(() {
-                  itemClickedState.remove(item.id);
-                });
-                await _refreshPage();
-              }
+                SnackBar(
+                  content: Text('Обновлен статус: ${item.name}'),
+                  duration: const Duration(seconds: 1),
+                ),
+              );
+            }
+          : null,
+      onLongPress: (item.currentStation.id != 4 && 
+                      (item.status == OrderItemStationStatus.COOCKING || 
+                       item.status == OrderItemStationStatus.ADDED))
+          ? () {
+              _showConfirmReadyDialog(item);
             }
           : null,
       child: Container(
@@ -329,21 +413,165 @@ Widget? _buildOrderColumn(OrderFullDto orderDto) {
             ),
             Text('Станция: ${item.currentStation.name}'),
             Text('$status: $elapsedSeconds сек назад'),
-            if (!canTap)
+            if (!canTap && item.status == OrderItemStationStatus.COOCKING)
               const Text(
                 'Еще не готов к сборке',
                 style: TextStyle(color: Colors.red),
-              ),
+              )
           ],
         ),
       ),
     );
   }
 
-  Future<void> _refreshPage() async {
-    webSocketService.disconnect();
-    await Future.delayed(const Duration(milliseconds: 300));
-    _connectToWebSocket(widget.initialScreenId);
-    webSocketService.sendGetAllOrdersWithItems();
+  Future<void> _loadHistoryOrders() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/orders/history'),
+      );
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        setState(() {
+          historyOrders = data.map((e) => OrderFullDto.fromJson(e)).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading history: $e');
+    }
+  }
+
+  void _showConfirmReadyDialog(OrderItemDto item) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Отметь что готово?'),
+        content: Text('Вы хотите отметить "${item.name}" как собранное?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Отмена'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              
+              try {
+                final response = await http.post(
+                  Uri.parse('${ApiConfig.baseUrl}/api/v1/orders/${item.id}/updateToCollecting'),
+                );
+                
+                if (response.statusCode == 200) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${item.name} отмечено как собранное'),
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Ошибка при обновлении статуса'),
+                    ),
+                  );
+                }
+              } catch (e) {
+                debugPrint('Error updating item to collecting: $e');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Ошибка подключения к серверу'),
+                  ),
+                );
+              }
+            },
+            child: const Text('Да'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showReturnItemsDialog(OrderFullDto orderDto) {
+    // Фильтруем блюда (исключаем допы)
+    final itemsToShow = orderDto.items.where((item) {
+      return !item.extra; // Показываем только основные блюда, без допов
+    }).toList();
+    
+    Map<int, bool> selectedItems = {};
+    for (var item in itemsToShow) {
+      selectedItems[item.id] = true; // По умолчанию все выбраны
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: Text('Вернуть блюда из заказа #${orderDto.name}'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: itemsToShow.length,
+                itemBuilder: (context, index) {
+                  final item = itemsToShow[index];
+                  return CheckboxListTile(
+                    title: Text(item.name),
+                    value: selectedItems[item.id] ?? false,
+                    onChanged: (value) {
+                      setStateDialog(() {
+                        selectedItems[item.id] = value ?? false;
+                      });
+                    },
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Отмена'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final selectedIds = selectedItems.entries
+                      .where((entry) => entry.value)
+                      .map((entry) => entry.key)
+                      .toList();
+                  
+                  if (selectedIds.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Выберите хотя бы одно блюдо')),
+                    );
+                    return;
+                  }
+                  
+                  // Отправляем запрос на возврат
+                  try {
+                    final response = await http.post(
+                      Uri.parse('${ApiConfig.baseUrl}/api/v1/orders/${orderDto.id}/returnItems'),
+                      headers: {'Content-Type': 'application/json'},
+                      body: jsonEncode(selectedIds),
+                    );
+                    
+                    if (response.statusCode == 200) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Позиции возвращены')),
+                      );
+                      // Обновляем историю
+                      _loadHistoryOrders();
+                    }
+                  } catch (e) {
+                    debugPrint('Error returning items: $e');
+                  }
+                },
+                child: const Text('Вернуть'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 }

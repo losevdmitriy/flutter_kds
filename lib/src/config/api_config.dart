@@ -1,4 +1,5 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'city_config.dart';
 
 class ApiConfig {
   static String _ip = dotenv.env['BASE_URL'] ?? "127.0.0.1";
@@ -32,5 +33,31 @@ class ApiConfig {
   static void setIpAndPort(String newIp, int newPort) {
     ip = newIp;
     port = newPort;
+  }
+
+  /// Установка конфигурации по названию города
+  static void setCityConfig(String cityName) {
+    final config = CityConfig.getCityConfig(cityName);
+    if (config['ip'] != null && config['port'] != null) {
+      setIpAndPort(config['ip'] as String, config['port'] as int);
+    }
+  }
+
+  /// Получить название текущего города на основе установленного IP
+  static String? getCurrentCity() {
+    for (String city in CityConfig.availableCities) {
+      final config = CityConfig.getCityConfig(city);
+      if (config['ip'] == _ip && config['port'] == _port) {
+        return city;
+      }
+    }
+    return null; // IP не соответствует ни одному из предустановленных городов
+  }
+
+  /// Проверить, установлен ли корректный IP (не дефолтный)
+  static bool isIpConfigured() {
+    // Проверяем, что IP не является дефолтным значением
+    final defaultIp = dotenv.env['BASE_URL'] ?? "127.0.0.1";
+    return _ip != "127.0.0.1" && _ip != defaultIp;
   }
 }

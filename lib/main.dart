@@ -4,6 +4,7 @@ import 'package:flutter_iem_new/src/page/Warehouse/warehouse_page.dart';
 import 'package:flutter_iem_new/src/page/Warehouse/write_off_page.dart';
 import 'package:flutter_iem_new/src/page/collector_screen_page.dart';
 import 'src/page/processing_screens/all_processing_acts_screen.dart';
+import 'src/page/processing_screens/ttk_display_screen.dart';
 import 'src/page/start_page.dart';
 import 'src/page/chef_screen_page.dart';
 
@@ -41,6 +42,8 @@ class MyApp extends StatelessWidget {
               initialScreenId: args?['screenId'] ?? '',
             ),
           );
+        } else if (settings.name == '/ttk') {
+          return MaterialPageRoute(builder: (context) => const TTKDisplayScreen());
         } else if (settings.name == '/addPrepack') {
           return MaterialPageRoute(
               builder: (context) => AllProcessingActsScreen());
